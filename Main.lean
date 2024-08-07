@@ -13,18 +13,14 @@ def main : IO Unit := do
   cpp.run
   cpp.flush
   let mut state := example_program_state
-  state.draw cpp
-  cpp.run
-  cpp.flush
   repeat do
     let alOutput ← cpp.getOutputLine
-    IO.print alOutput
+    IO.println alOutput
     let newState := ProgramState.process state alOutput
     if not newState.exitRequested then
       if not (newState.beq state) then do
-        newState.draw cpp
-        cpp.run
-        cpp.flush
+        newState.draw state cpp
+        IO.println "State change"
       else do
         IO.println "No state change"
       IO.sleep (ms:=1)
