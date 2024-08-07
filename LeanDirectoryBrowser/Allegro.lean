@@ -58,6 +58,8 @@ namespace Al
       cpp.stdin.putStrLn $ "Al.ClearToColor(" ++ toString c ++ ");"
     def drawStr (fontFileName : String) (size: Nat) (align : FontAlignFlags) (text : String) : IO Unit := do
       cpp.stdin.putStrLn $ "{ var font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None);  Al.DrawUstr( font, " ++ toString c ++ ", " ++ toString x ++ ", " ++ toString y ++ ", FontAlignFlags." ++ toString align ++ ", Al.UstrNew(\"" ++ text ++ "\"));Al.DestroyFont(font);}"
+    def requestStrWidth (fontFileName : String) (size: Nat) (text : String) : IO Unit := do
+      cpp.stdin.putStrLn $ "{ var font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None);  var width = Al.GetUstrWidth(font, Al.UstrNew(\"" ++ text ++ "\"));Al.DestroyFont(font); Console.WriteLine(\"STR_WIDTH:\" + width);}"
     def drawFilledCircle : IO Unit := do
       cpp.stdin.putStrLn $ "Al.DrawFilledCircle(" ++ toString x ++ ", " ++ toString y ++ ", " ++ toString r ++ ", " ++ toString c ++ ");"
     def drawCircle : IO Unit := do
