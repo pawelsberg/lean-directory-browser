@@ -20,7 +20,7 @@ or
 
 - v(major).(minor).(patch) - for a bug fix, refactoring or specification update only. This pattern is never used to release a new feature.
 
-Major of 0 means that the library is in the development stage not ready for production.
+Major of 0 means that the it is in the development stage not ready for production.
 
 Branches for these are:
 
