@@ -53,4 +53,25 @@ namespace File
     | File.file _, _ => none
     findDirectoryAux root path
 
+  def findPreviousFile : List File → String → String
+    | [], currentFilePath => currentFilePath
+    | f :: fs, currentFilePath =>
+      match fs with
+      | [] => currentFilePath
+      | f' :: _ =>
+        if currentFilePath == f'.path  then
+            f.path
+          else
+            findPreviousFile fs currentFilePath
+
+  def findNextFile : List File → String → String
+    | [], currentFilePath => currentFilePath
+    | f :: fs, currentFilePath =>
+      if currentFilePath == f.path then
+        match fs with
+        | [] => f.path
+        | f' :: _ => f'.path
+      else
+        findNextFile fs currentFilePath
+
 end File

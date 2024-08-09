@@ -39,35 +39,67 @@ namespace ProgramState
   def processKeyDown (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory with
     | File.directory _ children =>
-      let rec find_next_file : List File → String → String
-      | [], current_file_path => current_file_path
-      | f :: fs, current_file_path =>
-        if current_file_path == f.path then
-          match fs with
-          | [] => f.path
-          | f' :: _ => f'.path
-        else
-          find_next_file fs current_file_path
       -- selected_file_path is the next file in the list
-      let new_selected_file_path := find_next_file children ps.selectedFilePath
+      let new_selected_file_path := File.findNextFile children ps.selectedFilePath
+      { ps with selectedFilePath := new_selected_file_path }
+    | _ => ps
+
+  def processKeyRight (ps : ProgramState) : ProgramState :=
+    match ps.currentDirectory, ps.displayRows with
+    | File.directory _ children, some displayRows =>
+      -- selected_file_path is the file in the next column
+      let new_selected_file_path := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
+       --find_next_file children ps.selectedFilePath
+      { ps with selectedFilePath := new_selected_file_path }
+    | _, _ => ps
+
+  def processKeyPageDown (ps : ProgramState) : ProgramState :=
+    match ps.currentDirectory, ps.displayRows, ps.displayColumns with
+    | File.directory _ children, some displayRows, some displayColumns =>
+      -- selected_file_path is the file on the next page
+      let new_selected_file_path := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
+      -- find_next_file children ps.selectedFilePath
+      { ps with selectedFilePath := new_selected_file_path }
+    | _, _, _ => ps
+
+  def processKeyEnd (ps : ProgramState) : ProgramState :=
+    match ps.currentDirectory with
+    | File.directory _ children =>
+      -- selected_file_path is the last file in the list
+      let new_selected_file_path := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
       { ps with selectedFilePath := new_selected_file_path }
     | _ => ps
 
   def processKeyUp (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory with
     | File.directory _ children =>
-      let rec find_previous_file : List File → String → String
-      | [], current_file_path => current_file_path
-      | f :: fs, current_file_path =>
-        match fs with
-        | [] => current_file_path
-        | f' :: _ =>
-          if current_file_path == f'.path  then
-              f.path
-            else
-              find_previous_file fs current_file_path
       -- selected_file_path is the previous file in the list
-      let new_selected_file_path := find_previous_file children ps.selectedFilePath
+      let new_selected_file_path := File.findPreviousFile children ps.selectedFilePath
+      { ps with selectedFilePath := new_selected_file_path }
+    | _ => ps
+
+  def processKeyLeft (ps : ProgramState) : ProgramState :=
+    match ps.currentDirectory, ps.displayRows with
+    | File.directory _ children, some displayRows=>
+      -- selected_file_path is the file in the previous column
+      let new_selected_file_path := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) ps.selectedFilePath
+      { ps with selectedFilePath := new_selected_file_path }
+    | _, _ => ps
+
+  def processKeyPageUp (ps : ProgramState) : ProgramState :=
+    match ps.currentDirectory, ps.displayRows, ps.displayColumns with
+    | File.directory _ children, some displayRows, some displayColumns =>
+      -- selected_file_path is the file on the previous page
+      let new_selected_file_path := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) ps.selectedFilePath
+       --find_next_file children ps.selectedFilePath
+      { ps with selectedFilePath := new_selected_file_path }
+    | _, _, _ => ps
+
+  def processKeyHome (ps : ProgramState) : ProgramState :=
+    match ps.currentDirectory with
+    | File.directory _ children =>
+      -- selected_file_path is the first file on the list
+      let new_selected_file_path := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) ps.selectedFilePath
       { ps with selectedFilePath := new_selected_file_path }
     | _ => ps
 
@@ -122,13 +154,13 @@ namespace ProgramState
       {ps with
         displayHeight := height
         displayRows := match height with
-                | some h => some ((h - 40) / 20)
+                | some h => some ((h - 50) / 20)
                 | _ => none
       }
     else if input.startsWith "STR_WIDTH:" then
       let columnWidth := (input.drop 10).toNat!
-      {ps with displayColumnWidth := some columnWidth
-              ,displayColumns := match ps.displayWidth, columnWidth with
+      {ps with displayColumnWidth := some (columnWidth + 10)
+              ,displayColumns := match ps.displayWidth, (columnWidth+10) with
                                   | some w, cw => some (w / cw)
                                   | _, _ => none -- shouldn't happen
 
@@ -136,22 +168,20 @@ namespace ProgramState
     else
       match input with
       | "KEY_DOWN:KeyDown" => ps.processKeyDown
-      -- todo: implement properly the page down
-      | "KEY_DOWN:KeyPageDown" => ps.processKeyDown.processKeyDown.processKeyDown.processKeyDown
-      -- todo: implement properly the end
-      | "KEY_DOWN:KeyEnd" => ps.processKeyDown.processKeyDown.processKeyDown.processKeyDown.processKeyDown.processKeyDown.processKeyDown.processKeyDown
+      | "KEY_DOWN:KeyRight" => ps.processKeyRight
+      | "KEY_DOWN:KeyPageDown" => ps.processKeyPageDown
+      | "KEY_DOWN:KeyEnd" => ps.processKeyEnd
       | "KEY_DOWN:KeyUp" => ps.processKeyUp
-      -- todo: implement properly the page up
-      | "KEY_DOWN:KeyPageUp" => ps.processKeyUp.processKeyUp.processKeyUp.processKeyUp
-      -- todo: implement properly the home
-      | "KEY_DOWN:KeyHome" => ps.processKeyUp.processKeyUp.processKeyUp.processKeyUp.processKeyUp.processKeyUp.processKeyUp.processKeyUp
+      | "KEY_DOWN:KeyLeft" => ps.processKeyLeft
+      | "KEY_DOWN:KeyPageUp" => ps.processKeyPageUp
+      | "KEY_DOWN:KeyHome" => ps.processKeyHome
       | "KEY_DOWN:KeyQ" => ps.processKeyQ
       | "KEY_DOWN:KeyEnter" => ps.processKeyEnter
       | "KEY_DOWN:KeyBackspace" => ps.processKeyBackspace
       | "DONE." => { ps with exitRequested := true }
       | _ => ps
 
-  set_option diagnostics true
+  --set_option diagnostics true
   def draw (ps prevPs: ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
     match ps.displayHeight, ps.displayWidth, ps.displayRows, ps.displayColumns,
       ps.displayColumnWidth, ps.currentDirectoryPath, prevPs.displayHeight, prevPs.currentDirectoryPath with
@@ -256,7 +286,7 @@ def example_program_state : ProgramState :=
     (fileOnTopPath := "/root/subdir1")
     (exitRequested := false)
 
-#eval ((example_program_state.process "DISPLAY_WIDTH:1024").process "DISPLAY_HEIGHT:768").process "STR_WIDTH:77"
+#eval ((example_program_state.process "DISPLAY_WIDTH:3456").process "DISPLAY_HEIGHT:2160").process "STR_WIDTH:77"
 #eval example_program_state.processKeyEnter
 #eval example_program_state.processKeyEnter.processKeyDown
 #eval example_program_state.processKeyEnter.processKeyBackspace ==
