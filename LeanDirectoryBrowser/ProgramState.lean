@@ -18,90 +18,174 @@ structure ProgramState :=
 
 namespace ProgramState
   def beq : ProgramState → ProgramState → Bool
-  | ProgramState.mk displayWidth1 displayHeight1 displayRows1 displayColumns1 displayColumnWidth1 root1 current_directory_path1 selected_file_path1 file_on_top_path1 exit_requested1,
-    ProgramState.mk displayWidth2 displayHeight2 displayRows2 displayColumns2 displayColumnWidth2 root2 current_directory_path2 selected_file_path2 file_on_top_path2 exit_requested2=>
+  | ProgramState.mk displayWidth1 displayHeight1 displayRows1 displayColumns1 displayColumnWidth1 root1 currentDirectoryPath1 selectedFilePath1 fileOnTopPath1 exitRequested1,
+    ProgramState.mk displayWidth2 displayHeight2 displayRows2 displayColumns2 displayColumnWidth2 root2 currentDirectoryPath2 selectedFilePath2 fileOnTopPath2 exitRequested2=>
     displayWidth1 == displayWidth2
     && displayHeight1 == displayHeight2
     && displayRows1 == displayRows2
     && displayColumns1 == displayColumns2
     && displayColumnWidth1 == displayColumnWidth2
     && root1 == root2
-    && current_directory_path1 == current_directory_path2
-    && selected_file_path1 == selected_file_path2
-    && file_on_top_path1 == file_on_top_path2
-    && exit_requested1 == exit_requested2
+    && currentDirectoryPath1 == currentDirectoryPath2
+    && selectedFilePath1 == selectedFilePath2
+    && fileOnTopPath1 == fileOnTopPath2
+    && exitRequested1 == exitRequested2
 
   instance : BEq ProgramState := ⟨ProgramState.beq⟩
 
   def currentDirectory (ps : ProgramState) : Option File :=
     ps.root.findDirectory ps.currentDirectoryPath
 
+  def displayHeaderFontSize (_ : ProgramState) : Nat := 80
+  def displayHeaderFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 220 220 255
+  def displayHeaderMargin (_ : ProgramState) : Nat := 10
+  def displayErrorFontSize (_ : ProgramState) : Nat := 100
+  def displayErrorFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 255 50 50
+  def displayTopHorizontalMargin (_ : ProgramState) : Nat := 10
+  def displayTopVerticalMargin (_ : ProgramState) : Nat := 10
+  def displayColumnMargin (_ : ProgramState) : Nat := 10
+  def displayFileFontSize (_ : ProgramState) : Nat := 60
+  def displayFileDefaultWidth (_ : ProgramState) : Nat := 50
+  def displayFileDeselectedFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 255 255 255
+  def displayFileSelectedFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 255 255 150
+
   def processKeyDown (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory with
-    | File.directory _ children =>
+    match ps.currentDirectory, ps.displayRows, ps.displayColumns with
+    | File.directory _ children, some displayRows, some displayColumns =>
       -- selected_file_path is the next file in the list
-      let new_selected_file_path := File.findNextFile children ps.selectedFilePath
-      { ps with selectedFilePath := new_selected_file_path }
-    | _ => ps
+      let newSelectedFilePath := File.findNextFile children ps.selectedFilePath
+      let moveRight := (File.indexOfFile children newSelectedFilePath) > (File.indexOfFile children ps.fileOnTopPath) + displayRows * displayColumns - 1
+      let newFileOnTopPath := if moveRight
+        then
+          let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) + displayRows
+          match (children.drop newFileOnTopIndex) with
+          | [] => ps.fileOnTopPath -- shouldn't happen
+          | f :: _ => f.path
+        else ps.fileOnTopPath
+      { ps with selectedFilePath := newSelectedFilePath,
+                fileOnTopPath := newFileOnTopPath}
+    | _, _, _ => ps
 
   def processKeyRight (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows with
-    | File.directory _ children, some displayRows =>
+    match ps.currentDirectory, ps.displayRows, ps.displayColumns with
+    | File.directory _ children, some displayRows, some displayColumns =>
       -- selected_file_path is the file in the next column
-      let new_selected_file_path := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
-       --find_next_file children ps.selectedFilePath
-      { ps with selectedFilePath := new_selected_file_path }
-    | _, _ => ps
+      let newSelectedFilePath := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
+      let moveRight := (File.indexOfFile children newSelectedFilePath) > (File.indexOfFile children ps.fileOnTopPath) + displayRows * displayColumns - 1
+      let newFileOnTopPath := if moveRight
+        then
+          let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) + displayRows
+          match (children.drop newFileOnTopIndex) with
+          | [] => ps.fileOnTopPath -- shouldn't happen
+          | f :: _ => f.path
+        else ps.fileOnTopPath
+      { ps with selectedFilePath := newSelectedFilePath,
+                fileOnTopPath := newFileOnTopPath}
+    | _, _, _ => ps
 
   def processKeyPageDown (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.displayColumns with
     | File.directory _ children, some displayRows, some displayColumns =>
       -- selected_file_path is the file on the next page
-      let new_selected_file_path := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
-      -- find_next_file children ps.selectedFilePath
-      { ps with selectedFilePath := new_selected_file_path }
+      let newSelectedFilePath := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
+      let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children ps.fileOnTopPath)) / displayRows - displayColumns + 1
+      let newFileOnTopPath := if moveRightColumns > 0
+        then
+          let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) + displayRows * moveRightColumns
+          match (children.drop newFileOnTopIndex) with
+          | [] => ps.fileOnTopPath -- shouldn't happen
+          | f :: _ => f.path
+        else ps.fileOnTopPath
+      { ps with selectedFilePath := newSelectedFilePath,
+                fileOnTopPath := newFileOnTopPath }
     | _, _, _ => ps
 
   def processKeyEnd (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory with
-    | File.directory _ children =>
+    match ps.currentDirectory, ps.displayRows, ps.displayColumns with
+    | File.directory _ children, some displayRows, some displayColumns =>
       -- selected_file_path is the last file in the list
-      let new_selected_file_path := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
-      { ps with selectedFilePath := new_selected_file_path }
-    | _ => ps
+      let newSelectedFilePath := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
+      let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children ps.fileOnTopPath)) / displayRows - displayColumns + 1
+      let newFileOnTopPath := if moveRightColumns > 0
+        then
+          let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) + displayRows * moveRightColumns
+          match (children.drop newFileOnTopIndex) with
+          | [] => ps.fileOnTopPath -- shouldn't happen
+          | f :: _ => f.path
+        else ps.fileOnTopPath
+      { ps with selectedFilePath := newSelectedFilePath,
+                fileOnTopPath := newFileOnTopPath }
+    | _, _, _ => ps
 
   def processKeyUp (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory with
-    | File.directory _ children =>
+    match ps.currentDirectory, ps.displayRows, ps.displayColumns with
+    | File.directory _ children, some displayRows, some displayColumns =>
       -- selected_file_path is the previous file in the list
-      let new_selected_file_path := File.findPreviousFile children ps.selectedFilePath
-      { ps with selectedFilePath := new_selected_file_path }
-    | _ => ps
+      let newSelectedFilePath := File.findPreviousFile children ps.selectedFilePath
+      let moveLeft := (File.indexOfFile children newSelectedFilePath) < (File.indexOfFile children ps.fileOnTopPath)
+      let newFileOnTopPath := if moveLeft
+        then
+          let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) - displayRows
+          match (children.drop newFileOnTopIndex) with
+          | [] => ps.fileOnTopPath -- shouldn't happen
+          | f :: _ => f.path
+        else ps.fileOnTopPath
+
+      { ps with selectedFilePath := newSelectedFilePath,
+                fileOnTopPath := newFileOnTopPath }
+    | _, _, _ => ps
 
   def processKeyLeft (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows with
-    | File.directory _ children, some displayRows=>
-      -- selected_file_path is the file in the previous column
-      let new_selected_file_path := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) ps.selectedFilePath
-      { ps with selectedFilePath := new_selected_file_path }
-    | _, _ => ps
+    match ps.currentDirectory, ps.displayRows, ps.displayColumns with
+    | File.directory _ children, some displayRows, some displayColumns =>
+     -- selected_file_path is the file in the previous column
+      let newSelectedFilePath := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) ps.selectedFilePath
+      let moveLeft := (File.indexOfFile children newSelectedFilePath) < (File.indexOfFile children ps.fileOnTopPath)
+      let newFileOnTopPath := if moveLeft
+        then
+          let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) - displayRows
+          match (children.drop newFileOnTopIndex) with
+          | [] => ps.fileOnTopPath -- shouldn't happen
+          | f :: _ => f.path
+        else ps.fileOnTopPath
+
+      { ps with selectedFilePath := newSelectedFilePath,
+                fileOnTopPath := newFileOnTopPath }
+    | _, _, _ => ps
 
   def processKeyPageUp (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.displayColumns with
     | File.directory _ children, some displayRows, some displayColumns =>
       -- selected_file_path is the file on the previous page
-      let new_selected_file_path := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) ps.selectedFilePath
-       --find_next_file children ps.selectedFilePath
-      { ps with selectedFilePath := new_selected_file_path }
+      let newSelectedFilePath := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) ps.selectedFilePath
+      let moveLeftColumns : Nat := ((File.indexOfFile children ps.fileOnTopPath) - (File.indexOfFile children newSelectedFilePath) - 1) / displayRows + 1
+      let newFileOnTopPath := if moveLeftColumns > 0
+        then
+          let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) - displayRows * moveLeftColumns
+          match (children.drop newFileOnTopIndex) with
+          | [] => ps.fileOnTopPath -- shouldn't happen
+          | f :: _ => f.path
+        else ps.fileOnTopPath
+      { ps with selectedFilePath := newSelectedFilePath,
+                fileOnTopPath := newFileOnTopPath }
     | _, _, _ => ps
 
   def processKeyHome (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory with
-    | File.directory _ children =>
+    match ps.currentDirectory, ps.displayRows, ps.displayColumns with
+    | File.directory _ children, some displayRows, some _ =>
       -- selected_file_path is the first file on the list
-      let new_selected_file_path := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) ps.selectedFilePath
-      { ps with selectedFilePath := new_selected_file_path }
-    | _ => ps
+      let newSelectedFilePath := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) ps.selectedFilePath
+      let moveLeftColumns : Nat := ((File.indexOfFile children ps.fileOnTopPath) - (File.indexOfFile children newSelectedFilePath) - 1) / displayRows + 1
+      let newFileOnTopPath := if moveLeftColumns > 0
+        then
+          let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) - displayRows * moveLeftColumns
+          match (children.drop newFileOnTopIndex) with
+          | [] => ps.fileOnTopPath -- shouldn't happen
+          | f :: _ => f.path
+        else ps.fileOnTopPath
+      { ps with selectedFilePath := newSelectedFilePath,
+                fileOnTopPath := newFileOnTopPath }
+    | _, _, _ => ps
 
   def processKeyQ (ps : ProgramState) : ProgramState :=
     { ps with exitRequested := true }
@@ -148,20 +232,20 @@ namespace ProgramState
 
   def process (ps : ProgramState) (input : String) : ProgramState :=
     if input.startsWith "DISPLAY_WIDTH:" then
-      {ps with displayWidth := some (input.drop 14).toNat! }
+      {ps with displayWidth := some (input.drop "DISPLAY_WIDTH:".length).toNat! }
     else if input.startsWith "DISPLAY_HEIGHT:" then
-      let height := some (input.drop 15).toNat!
+      let height := some (input.drop "DISPLAY_HEIGHT:".length).toNat!
       {ps with
         displayHeight := height
         displayRows := match height with
-                | some h => some ((h - 50) / 20)
+                | some h => some ((h - ps.displayTopVerticalMargin - ps.displayHeaderFontSize - ps.displayHeaderMargin) / ps.displayFileFontSize)
                 | _ => none
       }
     else if input.startsWith "STR_WIDTH:" then
-      let columnWidth := (input.drop 10).toNat!
-      {ps with displayColumnWidth := some (columnWidth + 10)
-              ,displayColumns := match ps.displayWidth, (columnWidth+10) with
-                                  | some w, cw => some (w / cw)
+      let columnWidth := (input.drop "STR_WIDTH:".length).toNat!
+      {ps with displayColumnWidth := some (columnWidth + ps.displayColumnMargin)
+              ,displayColumns := match ps.displayWidth, (columnWidth + ps.displayColumnMargin) with
+                                  | some w, cw => some (w / cw) -- todo - remove last extra column margin
                                   | _, _ => none -- shouldn't happen
 
       }
@@ -184,72 +268,72 @@ namespace ProgramState
   --set_option diagnostics true
   def draw (ps prevPs: ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
     match ps.displayHeight, ps.displayWidth, ps.displayRows, ps.displayColumns,
-      ps.displayColumnWidth, ps.currentDirectoryPath, prevPs.displayHeight, prevPs.currentDirectoryPath with
-    | none, none, _, _, _, _, _, _ => do -- no height or width yet - wait
+      ps.displayColumnWidth, ps.currentDirectoryPath, ps.fileOnTopPath, prevPs.displayHeight, prevPs.currentDirectoryPath with
+    | none, none, _, _, _, _, _, _,_ => do -- no height or width yet - wait
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr (Al.AllegroColor.mk 255 50 50) 10 10 "consola.ttf" 50 Al.FontAlignFlags.left "Waiting for display width and height"
-    | none, _, _, _, _, _, _, _ => do -- no height or width yet - wait
+      ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "Waiting for display width and height"
+    | none, _, _, _, _, _, _, _, _ => do -- no height or width yet - wait
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr (Al.AllegroColor.mk 255 50 50) 10 10 "consola.ttf" 50 Al.FontAlignFlags.left "Waiting for display height"
-    | _, none, _, _, _, _, _, _ => do -- no height or width yet - wait
+      ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "Waiting for display height"
+    | _, none, _, _, _, _, _, _, _ => do -- no height or width yet - wait
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr (Al.AllegroColor.mk 255 50 50) 10 10 "consola.ttf" 50 Al.FontAlignFlags.left "Waiting for display width"
-    | _, _, _, _, none, _, none, _ => do -- dimensions just present - no column width yet calculated - request it
+      ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "Waiting for display width"
+    | _, _, _, _, none, _, _, none, _ => do -- dimensions just present - no column width yet calculated - request it
         let maxStringWidth := match ps.currentDirectory with
           | some (File.directory _ children) => children.foldl (λ acc f => Nat.max acc (String.length (File.filename f))) 0
-          | _ => 50
-        ppc.requestStrWidth "consola.ttf" 20 (String.join (List.replicate maxStringWidth "W"))
+          | _ => ps.displayFileDefaultWidth
+        ppc.requestStrWidth "consola.ttf" ps.displayFileFontSize (String.join (List.replicate maxStringWidth "W"))
         ppc.run
         ppc.flush
         ppc.clearToColor Al.AllegroColor.black
-        ppc.drawStr (Al.AllegroColor.mk 255 50 50) 10 10 "consola.ttf" 50 Al.FontAlignFlags.left "String width just requested"
-    | _, _, _, _, none, currentDirectoryPath, _, previousDirectoryPath => do -- dimensions were present previously - so just waiting for the column width
+        ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "String width just requested"
+    | _, _, _, _, none, currentDirectoryPath, _, _, previousDirectoryPath => do -- dimensions were present previously - so just waiting for the column width
       if currentDirectoryPath != previousDirectoryPath then
         let maxStringWidth := match ps.currentDirectory with
           | some (File.directory _ children) => children.foldl (λ acc f => Nat.max acc (String.length (File.filename f))) 0
-          | _ => 50
-        ppc.requestStrWidth "consola.ttf" 20 (String.join (List.replicate maxStringWidth "W"))
+          | _ => ps.displayFileDefaultWidth
+        ppc.requestStrWidth "consola.ttf" ps.displayFileFontSize (String.join (List.replicate maxStringWidth "W"))
         ppc.run
         ppc.flush
         ppc.clearToColor Al.AllegroColor.black
-        ppc.drawStr (Al.AllegroColor.mk 255 50 50) 10 10 "consola.ttf" 50 Al.FontAlignFlags.left "String width just requested after changing folder"
+        ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "String width just requested after changing folder"
       else
         ppc.clearToColor Al.AllegroColor.black
-        ppc.drawStr (Al.AllegroColor.mk 255 50 50) 10 10 "consola.ttf" 50 Al.FontAlignFlags.left "String width requested previosly"
-    | some displayHeight, some displayWidth, some displayRows, some displayColumns, some displayColumnWidth, _, _, _ => do
+        ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "String width requested previosly"
+    | some _, some _, some displayRows, some displayColumns, some displayColumnWidth, _, fileOnTopPath, _, _ => do
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr (Al.AllegroColor.mk 220 220 255) 10 10 "consola.ttf" 40 Al.FontAlignFlags.left ps.currentDirectoryPath
+      ppc.drawStr ps.displayHeaderFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayHeaderFontSize Al.FontAlignFlags.left ps.currentDirectoryPath
 
       let draw_file : File → Nat → Nat → IO Unit
       | file, x, y => do
         let filename := file.filename
         let color := if ps.selectedFilePath == file.path then
-                      (Al.AllegroColor.mk 255 255 150)
+                      ps.displayFileSelectedFontColour
                     else
-                      (@Al.AllegroColor.mk 255 255 255)
-        ppc.drawStr color x y "consola.ttf" 20 Al.FontAlignFlags.left filename
+                      ps.displayFileDeselectedFontColour
+        ppc.drawStr color x y "consola.ttf" ps.displayFileFontSize Al.FontAlignFlags.left filename
 
       let rec draw_children_one_level : List File → Nat → Nat → IO Unit
         | [], _, _ => pure ()
         | f :: fs, x, y => do
           draw_file f x y
-          draw_children_one_level fs x (y + 20)
+          draw_children_one_level fs x (y + ps.displayFileFontSize)
 
       match ps.currentDirectory with
         | File.directory _ children =>
-          let rec draw_children_columns : List File → Nat → Nat → IO Unit
-          | [], _, _ => pure ()
-          | fs, x, y => do
+          let rec draw_children_columns : List File → Nat → Nat → Nat → IO Unit
+          | [], _, _, _ => pure ()
+          | fs, n, x, y => do
             let (to_draw, rest) := fs.splitAt displayRows
             draw_children_one_level to_draw x y
-            draw_children_columns rest (x + displayColumnWidth) y
-          decreasing_by sorry
-
-          draw_children_columns children 0 50
+            if (n > 1) then
+              draw_children_columns rest (n - 1) (x + displayColumnWidth) y
+          let childrenFromFileOnTop := children.drop (File.indexOfFile children fileOnTopPath)
+          draw_children_columns childrenFromFileOnTop displayColumns 0 (ps.displayTopVerticalMargin + ps.displayHeaderFontSize + ps.displayHeaderMargin)
         | _ => pure ()
-    | _, _, _, _, _, _, _, _  => do -- shouldn't happen
+    | _, _, _, _, _, _, _, _, _  => do -- shouldn't happen
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr (Al.AllegroColor.mk 255 50 50) 10 10 "consola.ttf" 200 Al.FontAlignFlags.left "ERROR: calculating display parameters"
+      ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "ERROR: calculating display parameters"
     ppc.run
     ppc.flush
 
@@ -264,7 +348,7 @@ def example_program_state : ProgramState :=
           (path:= "/root/subdir1")
           (children := [
             File.directory (path:= "/root/subdir1/subsubdir1")
-              (children := (List.range 150).map (λ n => (File.file (path := "/root/subdir1/subsubdir1/sfile" ++ toString n)) )),
+              (children := (List.range 6000).map (λ n => (File.file (path := "/root/subdir1/subsubdir1/sfile" ++ toString n)) )),
             File.file (path := "/root/subdir1/sfile1"),
             File.file (path := "/root/subdir1/sfile2"),
           ]),
@@ -286,7 +370,8 @@ def example_program_state : ProgramState :=
     (fileOnTopPath := "/root/subdir1")
     (exitRequested := false)
 
-#eval ((example_program_state.process "DISPLAY_WIDTH:3456").process "DISPLAY_HEIGHT:2160").process "STR_WIDTH:77"
+#eval ((example_program_state.process "DISPLAY_WIDTH:3456").process "DISPLAY_HEIGHT:2160").process "STR_WIDTH:99"
+#eval ((((example_program_state.process "DISPLAY_WIDTH:3456").process "DISPLAY_HEIGHT:2160").process "STR_WIDTH:99").processKeyEnter.processKeyEnter.process "STR_WIDTH:99").processKeyPageDown.processKeyUp.processKeyDown
 #eval example_program_state.processKeyEnter
 #eval example_program_state.processKeyEnter.processKeyDown
 #eval example_program_state.processKeyEnter.processKeyBackspace ==
