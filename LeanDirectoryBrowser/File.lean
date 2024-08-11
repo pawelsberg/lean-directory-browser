@@ -74,4 +74,12 @@ namespace File
       else
         findNextFile fs currentFilePath
 
+  def indexOfFile : List File → String → Nat
+    | [], _ => 0
+    | f :: fs, currentFilePath =>
+      if currentFilePath == f.path then
+        0
+      else
+        1 + indexOfFile fs currentFilePath
+
 end File
