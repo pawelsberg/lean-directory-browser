@@ -56,6 +56,12 @@ namespace Al
       cpp.stdin.putStrLn "Al.FlipDisplay();"
     def clearToColor : IO Unit := do
       cpp.stdin.putStrLn $ "Al.ClearToColor(" ++ toString c ++ ");"
+    def storeFont (fontFileName : String) (size: Nat) (fontStorageName: String) : IO Unit := do
+      cpp.stdin.putStrLn $ "{ AllegroFont font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None); S.Set<AllegroFont>(\"" ++ fontStorageName ++ "\", font);}"
+    def destroyStoredFont (fontStorageName: String) : IO Unit := do
+      cpp.stdin.putStrLn $ "{ AllegroFont font = S.Get<AllegroFont>(\"" ++ fontStorageName ++ "\"); Al.DestroyFont(font); S.Set<AllegroFont>(\"" ++ fontStorageName ++ "\", null);}"
+    def drawStoredFontStr (fontStorageName : String) (align : FontAlignFlags) (text : String) : IO Unit := do
+      cpp.stdin.putStrLn $ "{ AllegroFont font = S.Get<AllegroFont>(\"" ++ fontStorageName ++ "\"); Al.DrawUstr( font, " ++ toString c ++ ", " ++ toString x ++ ", " ++ toString y ++ ", FontAlignFlags." ++ toString align ++ ", Al.UstrNew(\"" ++ text ++ "\"));}"
     def drawStr (fontFileName : String) (size: Nat) (align : FontAlignFlags) (text : String) : IO Unit := do
       cpp.stdin.putStrLn $ "{ var font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None);  Al.DrawUstr( font, " ++ toString c ++ ", " ++ toString x ++ ", " ++ toString y ++ ", FontAlignFlags." ++ toString align ++ ", Al.UstrNew(\"" ++ text ++ "\"));Al.DestroyFont(font);}"
     def requestStrWidth (fontFileName : String) (size: Nat) (text : String) : IO Unit := do

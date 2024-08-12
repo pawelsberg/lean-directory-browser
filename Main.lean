@@ -13,6 +13,9 @@ def main : IO Unit := do
   cpp.run
   cpp.flush
   let mut state := example_program_state
+  state.initFonts cpp
+  cpp.run
+  cpp.flush
   repeat do
     let alOutput ← cpp.getOutputLine
     IO.println alOutput
@@ -28,6 +31,9 @@ def main : IO Unit := do
       continue
     else
       IO.println "Program ending..."
+      newState.destroyFonts cpp
+      cpp.run
+      cpp.flush
       cpp.exit
       cpp.run
       cpp.flush
