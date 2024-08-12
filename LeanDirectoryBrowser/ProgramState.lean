@@ -86,12 +86,11 @@ namespace ProgramState
     | _, _, _ => ps
 
   def processKeyPageDown (ps : ProgramState) : ProgramState :=
-    -- todo - fix issue with moving to the right at the end of the list
     match ps.currentDirectory, ps.displayRows, ps.displayColumns with
     | File.directory _ children, some displayRows, some displayColumns =>
       -- selected_file_path is the file on the next page
       let newSelectedFilePath := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
-      let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children ps.fileOnTopPath)) / displayRows - displayColumns + 1
+      let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children ps.fileOnTopPath)) / displayRows + 1 - displayColumns
       let newFileOnTopPath := if moveRightColumns > 0
         then
           let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) + displayRows * moveRightColumns
@@ -108,7 +107,7 @@ namespace ProgramState
     | File.directory _ children, some displayRows, some displayColumns =>
       -- selected_file_path is the last file in the list
       let newSelectedFilePath := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) ps.selectedFilePath
-      let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children ps.fileOnTopPath)) / displayRows - displayColumns + 1
+      let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children ps.fileOnTopPath)) / displayRows + 1 - displayColumns
       let newFileOnTopPath := if moveRightColumns > 0
         then
           let newFileOnTopIndex := (File.indexOfFile children ps.fileOnTopPath) + displayRows * moveRightColumns
@@ -361,7 +360,7 @@ def example_program_state : ProgramState :=
           (path:= "/root/subdir1")
           (children := [
             File.directory (path:= "/root/subdir1/subsubdir1")
-              (children := (List.range 6000).map (λ n => (File.file (path := "/root/subdir1/subsubdir1/sfile" ++ toString n)) )),
+              (children := (List.range 1000).map (λ n => (File.file (path := "/root/subdir1/subsubdir1/sfile" ++ toString n)) )),
             File.file (path := "/root/subdir1/sfile1"),
             File.file (path := "/root/subdir1/sfile2"),
           ]),
