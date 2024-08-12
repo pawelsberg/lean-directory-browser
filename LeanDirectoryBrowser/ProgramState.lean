@@ -45,6 +45,8 @@ namespace ProgramState
   def displayTopVerticalMargin (_ : ProgramState) : Nat := 10
   def displayColumnMargin (_ : ProgramState) : Nat := 10
   def displayFileFontSize (_ : ProgramState) : Nat := 60
+  def displayFileFontFileName (_ : ProgramState) : String := "consola.ttf"
+  def displayFileFontStorageName (_ : ProgramState) : String := "file"
   def displayFileDefaultWidth (_ : ProgramState) : Nat := 50
   def displayFileDeselectedFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 255 255 255
   def displayFileSelectedFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 255 255 150
@@ -84,6 +86,7 @@ namespace ProgramState
     | _, _, _ => ps
 
   def processKeyPageDown (ps : ProgramState) : ProgramState :=
+    -- todo - fix issue with moving to the right at the end of the list
     match ps.currentDirectory, ps.displayRows, ps.displayColumns with
     | File.directory _ children, some displayRows, some displayColumns =>
       -- selected_file_path is the file on the next page
@@ -265,6 +268,16 @@ namespace ProgramState
       | "DONE." => { ps with exitRequested := true }
       | _ => ps
 
+  def initFonts (ps : ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
+    ppc.storeFont ps.displayFileFontFileName ps.displayFileFontSize ps.displayFileFontStorageName
+    ppc.run
+    ppc.flush
+
+  def destroyFonts (ps : ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
+    ppc.destroyStoredFont ps.displayFileFontStorageName
+    ppc.run
+    ppc.flush
+
   --set_option diagnostics true
   def draw (ps prevPs: ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
     match ps.displayHeight, ps.displayWidth, ps.displayRows, ps.displayColumns,
@@ -311,7 +324,7 @@ namespace ProgramState
                       ps.displayFileSelectedFontColour
                     else
                       ps.displayFileDeselectedFontColour
-        ppc.drawStr color x y "consola.ttf" ps.displayFileFontSize Al.FontAlignFlags.left filename
+        ppc.drawStoredFontStr color x y ps.displayFileFontStorageName Al.FontAlignFlags.left filename
 
       let rec draw_children_one_level : List File → Nat → Nat → IO Unit
         | [], _, _ => pure ()

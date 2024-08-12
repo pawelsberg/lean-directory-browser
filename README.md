@@ -3,10 +3,16 @@ It is a windows folder explorer written in lean4 (using code-proxy).
 
 ## Running project
 1. Build and copy code-proxy binaries to the Al subfolder of the output folder:
+
 ```.lake/build/bin/Al```
+
+Code-proxy is available at [Github](https://github.com/pawelsberg/code-proxy). It requires version 0.2 .
 2. Build the project:
+
 ```lake build```
+
 3. Run:
+
 ```
 cd .lake/build/bin
 .\leandirectorybrowser.exe
