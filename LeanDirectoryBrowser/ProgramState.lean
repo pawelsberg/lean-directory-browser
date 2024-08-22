@@ -37,9 +37,13 @@ namespace ProgramState
     ps.root.findDirectory ps.currentDirectoryPath
 
   def displayHeaderFontSize (_ : ProgramState) : Nat := 80
+  def displayHeaderFontFileName (_ : ProgramState) : String := "consola.ttf"
+  def displayHeaderFontStorageName (_ : ProgramState) : String := "header"
   def displayHeaderFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 220 220 255
   def displayHeaderMargin (_ : ProgramState) : Nat := 10
   def displayErrorFontSize (_ : ProgramState) : Nat := 100
+  def displayErrorFontFileName (_ : ProgramState) : String := "consola.ttf"
+  def displayErrorFontStorageName (_ : ProgramState) : String := "error"
   def displayErrorFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 255 50 50
   def displayTopHorizontalMargin (_ : ProgramState) : Nat := 10
   def displayTopVerticalMargin (_ : ProgramState) : Nat := 10
@@ -269,11 +273,15 @@ namespace ProgramState
 
   def initFonts (ps : ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
     ppc.storeFont ps.displayFileFontFileName ps.displayFileFontSize ps.displayFileFontStorageName
+    ppc.storeFont ps.displayErrorFontFileName ps.displayErrorFontSize ps.displayErrorFontStorageName
+    ppc.storeFont ps.displayHeaderFontFileName ps.displayHeaderFontSize ps.displayHeaderFontStorageName
     ppc.run
     ppc.flush
 
   def destroyFonts (ps : ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
     ppc.destroyStoredFont ps.displayFileFontStorageName
+    ppc.destroyStoredFont ps.displayErrorFontStorageName
+    ppc.destroyStoredFont ps.displayHeaderFontStorageName
     ppc.run
     ppc.flush
 
@@ -283,13 +291,13 @@ namespace ProgramState
       ps.displayColumnWidth, ps.currentDirectoryPath, ps.fileOnTopPath, prevPs.displayHeight, prevPs.currentDirectoryPath with
     | none, none, _, _, _, _, _, _,_ => do -- no height or width yet - wait
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "Waiting for display width and height"
+      ppc.drawStoredFontStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin ps.displayErrorFontStorageName Al.FontAlignFlags.left "Waiting for display width and height"
     | none, _, _, _, _, _, _, _, _ => do -- no height or width yet - wait
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "Waiting for display height"
+      ppc.drawStoredFontStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin ps.displayErrorFontStorageName Al.FontAlignFlags.left "Waiting for display height"
     | _, none, _, _, _, _, _, _, _ => do -- no height or width yet - wait
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "Waiting for display width"
+      ppc.drawStoredFontStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin ps.displayErrorFontStorageName Al.FontAlignFlags.left "Waiting for display width"
     | _, _, _, _, none, _, _, none, _ => do -- dimensions just present - no column width yet calculated - request it
         let maxStringWidth := match ps.currentDirectory with
           | some (File.directory _ children) => children.foldl (λ acc f => Nat.max acc (String.length (File.filename f))) 0
@@ -298,7 +306,7 @@ namespace ProgramState
         ppc.run
         ppc.flush
         ppc.clearToColor Al.AllegroColor.black
-        ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "String width just requested"
+        ppc.drawStoredFontStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin ps.displayErrorFontStorageName Al.FontAlignFlags.left "String width just requested"
     | _, _, _, _, none, currentDirectoryPath, _, _, previousDirectoryPath => do -- dimensions were present previously - so just waiting for the column width
       if currentDirectoryPath != previousDirectoryPath then
         let maxStringWidth := match ps.currentDirectory with
@@ -308,13 +316,13 @@ namespace ProgramState
         ppc.run
         ppc.flush
         ppc.clearToColor Al.AllegroColor.black
-        ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "String width just requested after changing folder"
+        ppc.drawStoredFontStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin ps.displayErrorFontStorageName Al.FontAlignFlags.left "String width just requested after changing folder"
       else
         ppc.clearToColor Al.AllegroColor.black
-        ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "String width requested previosly"
+        ppc.drawStoredFontStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin ps.displayErrorFontStorageName Al.FontAlignFlags.left "String width requested previosly"
     | some _, some _, some displayRows, some displayColumns, some displayColumnWidth, _, fileOnTopPath, _, _ => do
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr ps.displayHeaderFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayHeaderFontSize Al.FontAlignFlags.left ps.currentDirectoryPath
+      ppc.drawStoredFontStr ps.displayHeaderFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin ps.displayHeaderFontStorageName Al.FontAlignFlags.left ps.currentDirectoryPath
 
       let draw_file : File → Nat → Nat → IO Unit
       | file, x, y => do
@@ -345,7 +353,7 @@ namespace ProgramState
         | _ => pure ()
     | _, _, _, _, _, _, _, _, _  => do -- shouldn't happen
       ppc.clearToColor Al.AllegroColor.black
-      ppc.drawStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin "consola.ttf" ps.displayErrorFontSize Al.FontAlignFlags.left "ERROR: calculating display parameters"
+      ppc.drawStoredFontStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin ps.displayErrorFontStorageName Al.FontAlignFlags.left "ERROR: calculating display parameters"
     ppc.run
     ppc.flush
 
