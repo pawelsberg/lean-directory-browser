@@ -10,9 +10,16 @@ def main : IO Unit := do
     stdout := IO.Process.Stdio.piped
     }
   cpp.init
-  cpp.run
-  cpp.flush
-  let mut state := example_program_state
+
+  let children ← File.readChildren "c:\\Windows"
+  let mut state := {example_program_state  with
+    root := File.directory "c:\\Windows" (File.sortFiles children),
+    currentDirectoryPath := "c:\\Windows",
+    selectedFilePath := "c:\\Windows\\AppReadiness",
+    fileOnTopPath := "c:\\Windows\\AppReadiness",
+  }
+
+  IO.println (repr children).pretty
   state.initFonts cpp
   cpp.run
   cpp.flush

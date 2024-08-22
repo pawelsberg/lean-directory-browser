@@ -33,7 +33,7 @@ namespace File
     | file path => FilePath.parentPath path
 
   def filename (file : File) : String :=
-    match file.path.splitOn "/" with
+    match file.path.splitOn FilePath.pathDelimiter with
     | []        => ""
     | parts     => parts.getLastD ""
 
@@ -81,5 +81,28 @@ namespace File
         0
       else
         1 + indexOfFile fs currentFilePath
+
+  def readChildren (path : String) : IO (List File) := do
+    let dirEntries ← System.FilePath.readDir path
+    let children := dirEntries.toList.map (λ dirEntry => do
+      let isDir ← System.FilePath.isDir dirEntry.path
+      let child :=
+      match isDir with
+        | true => File.directory dirEntry.path.toString []
+        | false => File.file dirEntry.path.toString
+      return child
+      )
+    children.foldr (fun ioFile acc =>
+      ioFile >>= fun file =>
+        acc >>= fun files =>
+          pure (file :: files)) (pure [])
+
+  def sortFiles (files: List File) : List File :=
+    (files.toArray.insertionSort (fun f1 f2 => match f1, f2 with
+      | File.directory _ _, File.file _ => true
+      | File.file _, File.directory _ _ => false
+      | File.directory path1 _, File.directory path2 _ => path1 < path2
+      | File.file path1, File.file path2 => path1 < path2
+     )).toList
 
 end File
