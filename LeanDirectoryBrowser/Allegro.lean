@@ -70,12 +70,10 @@ namespace Al
         else acc ++ c.toString
       ) ""
     def drawStoredFontStr (fontStorageName : String) (align : FontAlignFlags) (text : String) : IO Unit := do
-      IO.println ("drawStr:" ++ (escapeString text))
       cpp.stdin.putStrLn $ "{ AllegroFont font = S.Get<AllegroFont>(\"" ++ fontStorageName ++ "\"); Al.DrawUstr( font, " ++ toString c ++ ", " ++ toString x ++ ", " ++ toString y ++ ", FontAlignFlags." ++ toString align ++ ", Al.UstrNew(\"" ++ (escapeString text) ++ "\"));}"
     def drawStr (fontFileName : String) (size: Nat) (align : FontAlignFlags) (text : String) : IO Unit := do
       cpp.stdin.putStrLn $ "{ var font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None);  Al.DrawUstr( font, " ++ toString c ++ ", " ++ toString x ++ ", " ++ toString y ++ ", FontAlignFlags." ++ toString align ++ ", Al.UstrNew(\"" ++ (escapeString text) ++ "\"));Al.DestroyFont(font);}"
     def requestStrWidth (fontFileName : String) (size: Nat) (text : String) : IO Unit := do
-      IO.println ("drawStr:" ++ (escapeString text))
       cpp.stdin.putStrLn $ "{ var font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None);  var width = Al.GetUstrWidth(font, Al.UstrNew(\"" ++ (escapeString text) ++ "\"));Al.DestroyFont(font); Console.WriteLine(\"STR_WIDTH:\" + width);}"
     def drawFilledCircle : IO Unit := do
       cpp.stdin.putStrLn $ "Al.DrawFilledCircle(" ++ toString x ++ ", " ++ toString y ++ ", " ++ toString r ++ ", " ++ toString c ++ ");"

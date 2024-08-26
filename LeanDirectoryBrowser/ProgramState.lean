@@ -57,7 +57,7 @@ namespace ProgramState
 
   def processKeyDown (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ children, some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
+    | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
       -- selected_file_path is the next file in the list
       let newSelectedFilePath := File.findNextFile children selectedFilePath
       let moveRight := (File.indexOfFile children newSelectedFilePath) > (File.indexOfFile children fileOnTopPath) + displayRows * displayColumns - 1
@@ -74,7 +74,7 @@ namespace ProgramState
 
   def processKeyRight (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ children, some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
+    | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
       -- selected_file_path is the file in the next column
       let newSelectedFilePath := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) selectedFilePath
       let moveRight := (File.indexOfFile children newSelectedFilePath) > (File.indexOfFile children fileOnTopPath) + displayRows * displayColumns - 1
@@ -91,7 +91,7 @@ namespace ProgramState
 
   def processKeyPageDown (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ children, some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
+    | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
       -- selected_file_path is the file on the next page
       let newSelectedFilePath := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) selectedFilePath
       let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children fileOnTopPath)) / displayRows + 1 - displayColumns
@@ -108,7 +108,7 @@ namespace ProgramState
 
   def processKeyEnd (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ children, some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
+    | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
       -- selected_file_path is the last file in the list
       let newSelectedFilePath := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) selectedFilePath
       let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children fileOnTopPath)) / displayRows + 1 - displayColumns
@@ -125,7 +125,7 @@ namespace ProgramState
 
   def processKeyUp (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ children, some displayRows, some selectedFilePath, some fileOnTopPath =>
+    | File.directory _ (some children), some displayRows, some selectedFilePath, some fileOnTopPath =>
       -- selected_file_path is the previous file in the list
       let newSelectedFilePath := File.findPreviousFile children selectedFilePath
       let moveLeft := (File.indexOfFile children newSelectedFilePath) < (File.indexOfFile children fileOnTopPath)
@@ -143,7 +143,7 @@ namespace ProgramState
 
   def processKeyLeft (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ children, some displayRows, some selectedFilePath, some fileOnTopPath =>
+    | File.directory _ (some children), some displayRows, some selectedFilePath, some fileOnTopPath =>
      -- selected_file_path is the file in the previous column
       let newSelectedFilePath := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) selectedFilePath
       let moveLeft := (File.indexOfFile children newSelectedFilePath) < (File.indexOfFile children fileOnTopPath)
@@ -161,7 +161,7 @@ namespace ProgramState
 
   def processKeyPageUp (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ children, some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
+    | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
       -- selected_file_path is the file on the previous page
       let newSelectedFilePath := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) selectedFilePath
       let moveLeftColumns : Nat := ((File.indexOfFile children fileOnTopPath) - (File.indexOfFile children newSelectedFilePath) - 1) / displayRows + 1
@@ -178,7 +178,7 @@ namespace ProgramState
 
   def processKeyHome (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ children, some displayRows, some _, some selectedFilePath, some fileOnTopPath =>
+    | File.directory _ (some children), some displayRows, some _, some selectedFilePath, some fileOnTopPath =>
       -- selected_file_path is the first file on the list
       let newSelectedFilePath := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) selectedFilePath
       let moveLeftColumns : Nat := ((File.indexOfFile children fileOnTopPath) - (File.indexOfFile children newSelectedFilePath) - 1) / displayRows + 1
@@ -198,9 +198,10 @@ namespace ProgramState
 
   def processKeyEnter (ps : ProgramState) : ProgramState :=
     match ps.currentDirectory with
-    | File.directory _ children =>
+    | File.directory _ (some children) =>
       match children.find? (λ f => f.path == ps.selectedFilePath) with
-      | some (File.directory path sub_children) =>
+      | some (File.directory path opt_sub_children) => match opt_sub_children with
+        | some sub_children =>
         { ps with currentDirectoryPath := path
                   , selectedFilePath := match sub_children with
                                           | [] => none
@@ -208,6 +209,13 @@ namespace ProgramState
                   , fileOnTopPath := match sub_children with
                                         | [] => none
                                         | f :: _ => some f.path
+                  , displayColumns := none
+                  , displayColumnWidth := none
+        }
+        | none => -- children not loaded yet
+        { ps with currentDirectoryPath := path
+                  , selectedFilePath := none
+                  , fileOnTopPath := none
                   , displayColumns := none
                   , displayColumnWidth := none
         }
@@ -223,10 +231,10 @@ namespace ProgramState
         | none => path
       let parentDirectory := ps.root.findDirectory parentPath
       match parentDirectory, ps.displayRows with
-      | some (File.directory _ children), some displayRows =>
+      | some (File.directory _ (some children)), some displayRows =>
         let fileOnTopPath := match children with
           | [] => parentPath
-          | f :: _ => f.path
+          | (f :: _) => f.path
         { ps with currentDirectoryPath := parentPath
                   , selectedFilePath := some ps.currentDirectoryPath
                   , fileOnTopPath := match children.drop ((File.indexOfFile children ps.currentDirectoryPath) / displayRows * displayRows) with
@@ -287,8 +295,27 @@ namespace ProgramState
     ppc.run
     ppc.flush
 
+  def withLoadedChildren (ps : ProgramState) : IO ProgramState := do
+    match ps.currentDirectory with
+    | File.directory _ (some _) =>
+      pure ps
+    | File.directory path none =>
+      let children ← File.readChildren path
+      let sortedChildren := File.sortFiles children
+      pure { ps with
+        root := ps.root.replaceDirectory path (File.directory path (some sortedChildren))
+        selectedFilePath := match sortedChildren with
+                            | [] => none
+                            | f :: _ => some f.path
+        fileOnTopPath := match sortedChildren with
+                          | [] => none
+                          | f :: _ => some f.path
+      }
+    | _ => pure ps
+
+
   --set_option diagnostics true
-  def draw (ps prevPs: ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
+  def callCodeProxy (ps prevPs: ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
     match ps.displayHeight, ps.displayWidth, ps.displayRows, ps.displayColumns,
       ps.displayColumnWidth, ps.currentDirectoryPath, ps.fileOnTopPath, prevPs.displayHeight, prevPs.currentDirectoryPath with
     | none, none, _, _, _, _, _, _,_ => do -- no height or width yet - wait
@@ -302,7 +329,7 @@ namespace ProgramState
       ppc.drawStoredFontStr ps.displayErrorFontColour ps.displayTopHorizontalMargin ps.displayTopVerticalMargin ps.displayErrorFontStorageName Al.FontAlignFlags.left "Waiting for display width"
     | _, _, _, _, none, _, _, none, _ => do -- dimensions just present - no column width yet calculated - request it
         let maxStringWidth := match ps.currentDirectory with
-          | some (File.directory _ children) => children.foldl (λ acc f => Nat.max acc (String.length (File.filename f))) 0
+          | some (File.directory _ (some children)) => children.foldl (λ acc f => Nat.max acc (String.length (File.filename f))) 0
           | _ => ps.displayFileDefaultWidth
         ppc.requestStrWidth "consola.ttf" ps.displayFileFontSize (String.join (List.replicate maxStringWidth "W"))
         ppc.run
@@ -312,7 +339,7 @@ namespace ProgramState
     | _, _, _, _, none, currentDirectoryPath, _, _, previousDirectoryPath => do -- dimensions were present previously - so just waiting for the column width
       if currentDirectoryPath != previousDirectoryPath then
         let maxStringWidth := match ps.currentDirectory with
-          | some (File.directory _ children) => children.foldl (λ acc f => Nat.max acc (String.length (File.filename f))) 0
+          | some (File.directory _ (some children)) => children.foldl (λ acc f => Nat.max acc (String.length (File.filename f))) 0
           | _ => ps.displayFileDefaultWidth
         ppc.requestStrWidth "consola.ttf" ps.displayFileFontSize (String.join (List.replicate maxStringWidth "W"))
         ppc.run
@@ -342,7 +369,7 @@ namespace ProgramState
           draw_children_one_level fs x (y + ps.displayFileFontSize)
 
       match ps.currentDirectory, ps.fileOnTopPath with
-        | File.directory _ children, some fileOnTopPath  =>
+        | File.directory _ (some children), some fileOnTopPath  =>
           let rec draw_children_columns : List File → Nat → Nat → Nat → IO Unit
           | [], _, _, _ => pure ()
           | fs, n, x, y => do
@@ -399,7 +426,7 @@ def example_program_state2 : ProgramState :=
       (children := [
         File.directory
           (path:= "C:\\Windows\\AppReadiness")
-          []
+          (some [])
       ]
       )
       )
@@ -415,6 +442,8 @@ def example_program_state2 : ProgramState :=
 def example_program_state2_initiated : ProgramState :=
   ((example_program_state2.process "DISPLAY_WIDTH:3456").process "DISPLAY_HEIGHT:2160").process "STR_WIDTH:99"
 
+#eval example_program_state2_initiated
+#eval (example_program_state2_initiated.processKeyEnter.process "STR_WIDTH:99")
 #eval (example_program_state2_initiated.processKeyEnter.process "STR_WIDTH:99").processKeyBackspace
 #eval match (example_program_state2_initiated.processKeyEnter.process "STR_WIDTH:99").currentDirectory with
   | some f => f.parentPath
