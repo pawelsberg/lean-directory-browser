@@ -1,6 +1,8 @@
 import LeanDirectoryBrowser.ProgramState
 import LeanDirectoryBrowser.Allegro
 
+def printWindowsDirectory (children: List File): IO Unit := do
+  IO.println (repr children).pretty
 
 def main : IO Unit := do
   let (cpp : Al.CodeProxyProcess) ← IO.Process.spawn {
@@ -11,34 +13,34 @@ def main : IO Unit := do
     }
   cpp.init
 
-  let children ← File.readChildren "c:\\Windows"
-  let mut state := {example_program_state  with
-    root := File.directory "c:\\Windows" (File.sortFiles children),
-    currentDirectoryPath := "c:\\Windows",
-    selectedFilePath := "c:\\Windows\\AppReadiness",
-    fileOnTopPath := "c:\\Windows\\AppReadiness",
+  let initState := {example_program_state  with
+    root := File.directory "c:\\Windows" none,
+    currentDirectoryPath := "c:\\Windows"
   }
+  let mut state ← ProgramState.withLoadedChildren initState
 
-  IO.println (repr children).pretty
   state.initFonts cpp
   cpp.run
   cpp.flush
   repeat do
     let alOutput ← cpp.getOutputLine
-    IO.println alOutput
+    IO.println ("IN:" ++ alOutput)
     let newState := ProgramState.process state alOutput
-    if not newState.exitRequested then
-      if not (newState.beq state) then do
-        newState.draw state cpp
-        IO.println "State change"
+    let newStateWithLoadedChildren ← ProgramState.withLoadedChildren newState
+
+    if not newStateWithLoadedChildren.exitRequested then
+      if not (newStateWithLoadedChildren.beq state) then do
+        newStateWithLoadedChildren.callCodeProxy state cpp
+        IO.println "State changed:"
+        IO.println (repr newStateWithLoadedChildren).pretty
       else do
         IO.println "No state change"
       IO.sleep (ms:=1)
-      state := newState
+      state := newStateWithLoadedChildren
       continue
     else
       IO.println "Program ending..."
-      newState.destroyFonts cpp
+      newStateWithLoadedChildren.destroyFonts cpp
       cpp.run
       cpp.flush
       cpp.exit
