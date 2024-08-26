@@ -47,11 +47,14 @@ namespace Al
     variable (cpp : CodeProxyProcess) (c : AllegroColor)
     variable (x y x1 y1 x2 y2 x3 y3 r thickness : Nat)
 
-    def init : IO Unit := do
-      cpp.stdin.putStrLn "Al.Init(); Al.InitFontAddon(); Al.InitTtfAddon(); Al.InitPrimitivesAddon(); Al.InitImageAddon(); Al.InstallKeyboard(); Al.InstallMouse(); var path = Al.GetStandardPath(StandardPath.ResourcesPath); var dataPath = Al.PathCstr(path, '\\\\'); Al.AppendPathComponent(path, \"data\"); Al.ChangeDirectory(Al.PathCstr(path, '\\\\')); Al.DestroyPath(path); Al.SetNewDisplayFlags(DisplayFlags.FullscreenWindow); Al.CreateDisplay(1024, 768); Console.WriteLine(\"DISPLAY_WIDTH:\" + Al.GetDisplayWidth(Al.GetCurrentDisplay())); Console.WriteLine(\"DISPLAY_HEIGHT:\" + Al.GetDisplayHeight(Al.GetCurrentDisplay())); AllegroTimer? timer = Al.CreateTimer(1.0 / 60.0); AllegroEventQueue? eventQueue = Al.CreateEventQueue(); Al.RegisterEventSource(eventQueue, Al.GetDisplayEventSource(Al.GetCurrentDisplay())); Al.RegisterEventSource(eventQueue, Al.GetKeyboardEventSource()); Al.RegisterEventSource(eventQueue, Al.GetMouseEventSource()); Al.RegisterEventSource(eventQueue, Al.GetTimerEventSource(timer)); Al.StartTimer(timer); while (!R.ExitRequested) { AllegroEvent allegroEvent = new AllegroEvent(); Al.WaitForEvent(eventQueue, ref allegroEvent); if (allegroEvent.Type is EventType.KeyDown) { Console.WriteLine($\"KEY_DOWN:{allegroEvent.Keyboard.KeyCode}\"); } if (allegroEvent.Type is EventType.KeyUp) { Console.WriteLine($\"KEY_UP:{allegroEvent.Keyboard.KeyCode}\"); } if (allegroEvent.Type is EventType.DisplayClose) { R.Exit(); } if (allegroEvent.Type is EventType.MouseAxes) { Console.WriteLine($\"MOUSE_AXES:{allegroEvent.Mouse.X},{allegroEvent.Mouse.Y}\"); } if (allegroEvent.Type is EventType.MouseButtonDown) { Console.WriteLine($\"MOUSE_BUTTON_DOWN:{allegroEvent.Mouse.Button}\"); } if (allegroEvent.Type is EventType.MouseButtonUp) { Console.WriteLine($\"MOUSE_BUTTON_UP:{allegroEvent.Mouse.Button}\"); } if (allegroEvent.Type is EventType.Timer) { string code; lock (R.CodeStringBuilder) { code = R.CodeStringBuilder.ToString(); R.CodeStringBuilder.Clear(); } if (code.Length > 0) { R.RunCode(code); Al.FlipDisplay(); } } } Al.DestroyDisplay(Al.GetCurrentDisplay()); Al.UninstallSystem(); Console.WriteLine(\"DONE.\");"
-      cpp.stdin.flush
+    def run : IO Unit := do
+      cpp.stdin.putStrLn "R.Run();"
     def flush : IO Unit := do
       cpp.stdin.flush
+    def init : IO Unit := do
+      cpp.stdin.putStrLn "Al.Init(); Al.InitFontAddon(); Al.InitTtfAddon(); Al.InitPrimitivesAddon(); Al.InitImageAddon(); Al.InstallKeyboard(); Al.InstallMouse(); var path = Al.GetStandardPath(StandardPath.ResourcesPath); var dataPath = Al.PathCstr(path, '\\\\'); Al.AppendPathComponent(path, \"data\"); Al.ChangeDirectory(Al.PathCstr(path, '\\\\')); Al.DestroyPath(path); Al.SetNewDisplayFlags(DisplayFlags.FullscreenWindow); Al.CreateDisplay(1024, 768); Console.WriteLine(\"DISPLAY_WIDTH:\" + Al.GetDisplayWidth(Al.GetCurrentDisplay())); Console.WriteLine(\"DISPLAY_HEIGHT:\" + Al.GetDisplayHeight(Al.GetCurrentDisplay())); AllegroTimer? timer = Al.CreateTimer(1.0 / 60.0); AllegroEventQueue? eventQueue = Al.CreateEventQueue(); Al.RegisterEventSource(eventQueue, Al.GetDisplayEventSource(Al.GetCurrentDisplay())); Al.RegisterEventSource(eventQueue, Al.GetKeyboardEventSource()); Al.RegisterEventSource(eventQueue, Al.GetMouseEventSource()); Al.RegisterEventSource(eventQueue, Al.GetTimerEventSource(timer)); Al.StartTimer(timer); while (!R.ExitRequested) { AllegroEvent allegroEvent = new AllegroEvent(); Al.WaitForEvent(eventQueue, ref allegroEvent); if (allegroEvent.Type is EventType.KeyDown) { Console.WriteLine($\"KEY_DOWN:{allegroEvent.Keyboard.KeyCode}\"); } if (allegroEvent.Type is EventType.KeyUp) { Console.WriteLine($\"KEY_UP:{allegroEvent.Keyboard.KeyCode}\"); } if (allegroEvent.Type is EventType.DisplayClose) { R.Exit(); } if (allegroEvent.Type is EventType.MouseAxes) { Console.WriteLine($\"MOUSE_AXES:{allegroEvent.Mouse.X},{allegroEvent.Mouse.Y}\"); } if (allegroEvent.Type is EventType.MouseButtonDown) { Console.WriteLine($\"MOUSE_BUTTON_DOWN:{allegroEvent.Mouse.Button}\"); } if (allegroEvent.Type is EventType.MouseButtonUp) { Console.WriteLine($\"MOUSE_BUTTON_UP:{allegroEvent.Mouse.Button}\"); } if (allegroEvent.Type is EventType.Timer) { string code; lock (R.CodeStringBuilder) { code = R.CodeStringBuilder.ToString(); R.CodeStringBuilder.Clear(); } if (code.Length > 0) { R.RunCode(code); Al.FlipDisplay(); } } } Al.DestroyDisplay(Al.GetCurrentDisplay()); Al.UninstallSystem(); Console.WriteLine(\"DONE.\");"
+      cpp.run
+      cpp.flush
     def flipDisplay : IO Unit := do
       cpp.stdin.putStrLn "Al.FlipDisplay();"
     def clearToColor : IO Unit := do
@@ -60,12 +63,18 @@ namespace Al
       cpp.stdin.putStrLn $ "{ AllegroFont font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None); S.Set<AllegroFont>(\"" ++ fontStorageName ++ "\", font);}"
     def destroyStoredFont (fontStorageName: String) : IO Unit := do
       cpp.stdin.putStrLn $ "{ AllegroFont font = S.Get<AllegroFont>(\"" ++ fontStorageName ++ "\"); Al.DestroyFont(font); S.Set<AllegroFont>(\"" ++ fontStorageName ++ "\", null);}"
+    def escapeString (s : String) : String :=
+      s.foldl (fun acc c =>
+        if c == '\\' then acc ++ "\\" ++ "\\"
+        else if c == '\"' then acc ++ "\\" ++ "\""
+        else acc ++ c.toString
+      ) ""
     def drawStoredFontStr (fontStorageName : String) (align : FontAlignFlags) (text : String) : IO Unit := do
-      cpp.stdin.putStrLn $ "{ AllegroFont font = S.Get<AllegroFont>(\"" ++ fontStorageName ++ "\"); Al.DrawUstr( font, " ++ toString c ++ ", " ++ toString x ++ ", " ++ toString y ++ ", FontAlignFlags." ++ toString align ++ ", Al.UstrNew(\"" ++ text ++ "\"));}"
+      cpp.stdin.putStrLn $ "{ AllegroFont font = S.Get<AllegroFont>(\"" ++ fontStorageName ++ "\"); Al.DrawUstr( font, " ++ toString c ++ ", " ++ toString x ++ ", " ++ toString y ++ ", FontAlignFlags." ++ toString align ++ ", Al.UstrNew(\"" ++ (escapeString text) ++ "\"));}"
     def drawStr (fontFileName : String) (size: Nat) (align : FontAlignFlags) (text : String) : IO Unit := do
-      cpp.stdin.putStrLn $ "{ var font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None);  Al.DrawUstr( font, " ++ toString c ++ ", " ++ toString x ++ ", " ++ toString y ++ ", FontAlignFlags." ++ toString align ++ ", Al.UstrNew(\"" ++ text ++ "\"));Al.DestroyFont(font);}"
+      cpp.stdin.putStrLn $ "{ var font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None);  Al.DrawUstr( font, " ++ toString c ++ ", " ++ toString x ++ ", " ++ toString y ++ ", FontAlignFlags." ++ toString align ++ ", Al.UstrNew(\"" ++ (escapeString text) ++ "\"));Al.DestroyFont(font);}"
     def requestStrWidth (fontFileName : String) (size: Nat) (text : String) : IO Unit := do
-      cpp.stdin.putStrLn $ "{ var font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None);  var width = Al.GetUstrWidth(font, Al.UstrNew(\"" ++ text ++ "\"));Al.DestroyFont(font); Console.WriteLine(\"STR_WIDTH:\" + width);}"
+      cpp.stdin.putStrLn $ "{ var font = Al.LoadTtfFont(Environment.GetFolderPath(Environment.SpecialFolder.Fonts) +  @\"\\" ++ fontFileName ++ "\", " ++ toString size ++ ", LoadFontFlags.None);  var width = Al.GetUstrWidth(font, Al.UstrNew(\"" ++ (escapeString text) ++ "\"));Al.DestroyFont(font); Console.WriteLine(\"STR_WIDTH:\" + width);}"
     def drawFilledCircle : IO Unit := do
       cpp.stdin.putStrLn $ "Al.DrawFilledCircle(" ++ toString x ++ ", " ++ toString y ++ ", " ++ toString r ++ ", " ++ toString c ++ ");"
     def drawCircle : IO Unit := do
@@ -80,8 +89,6 @@ namespace Al
       cpp.stdin.putStrLn $ "{ var bitmap = Al.LoadBitmap(@\"" ++ bitmapFileName ++ "\"); Al.DrawBitmap(bitmap, " ++ toString x ++ ", " ++ toString y ++ ", FlipFlags." ++ toString flipFlags ++ ");Al.DestroyBitmap(bitmap);}"
     def exit : IO Unit := do
       cpp.stdin.putStrLn "R.Exit();"
-    def run : IO Unit := do
-      cpp.stdin.putStrLn "R.Run();"
     def rest (seconds : Nat) : IO Unit := do
       cpp.stdin.putStrLn $ "Al.Rest(" ++ toString seconds ++ ");"
     def getOutputLine : IO String := do
