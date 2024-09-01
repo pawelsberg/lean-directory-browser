@@ -1,4 +1,5 @@
 import LeanDirectoryBrowser.ProgramState
+import LeanDirectoryBrowser.ProgramStateProcessing
 import LeanDirectoryBrowser.Allegro
 
 def printWindowsDirectory (children: List File): IO Unit := do
