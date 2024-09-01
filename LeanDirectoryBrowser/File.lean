@@ -58,7 +58,7 @@ namespace File
           file
     replaceFileAux root path
 
-  def findPreviousFile : List File → String → String
+  def findPreviousFilePath : List File → String → String
     | [], currentFilePath => currentFilePath
     | f :: fs, currentFilePath =>
       match fs with
@@ -67,9 +67,9 @@ namespace File
         if currentFilePath == f'.path  then
             f.path
           else
-            findPreviousFile fs currentFilePath
+            findPreviousFilePath fs currentFilePath
 
-  def findNextFile : List File → String → String
+  def findNextFilePath : List File → String → String
     | [], currentFilePath => currentFilePath
     | f :: fs, currentFilePath =>
       if currentFilePath == f.path then
@@ -77,7 +77,7 @@ namespace File
         | [] => f.path
         | f' :: _ => f'.path
       else
-        findNextFile fs currentFilePath
+        findNextFilePath fs currentFilePath
 
   def indexOfFile : List File → String → Nat
     | [], _ => 0
