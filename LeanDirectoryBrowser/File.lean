@@ -3,40 +3,21 @@ import LeanDirectoryBrowser.FilePath
 inductive File : Type
 | directory
   (path : String)
-  (children : Option (List File)) : File
+  (children : Option (List File))
 | file
   (path : String)
-  deriving Repr
-namespace File
-  -- check if equal
-  def beq (file1: File) (file2: File): Bool :=
-    let rec beqAux : File → File → Bool
-    | File.directory path1 children1,
-      File.directory path2 children2 =>
-      path1 == path2
-      && match children1, children2 with
-         | none, none => true
-         | some [], some [] => true
-         | some (f1 :: fs1), some (f2 :: fs2) => beqAux f1 f2
-            && beqAux (File.directory path1 fs1) (File.directory path2 fs2)
-         | _, _ => false
-    | File.file path1, File.file path2 => path1 == path2
-    | _, _ => false
-    beqAux file1 file2
-  instance : BEq File := ⟨File.beq⟩
+  deriving Repr, BEq
 
+namespace File
   def path : File → String
     | directory path _ => path
     | file path => path
 
-  def parentPath : File → String
-    | directory path _ => FilePath.parentPath path
-    | file path => FilePath.parentPath path
+  def parentPath (file: File): String :=
+    FilePath.parentPath file.path
 
   def filename (file : File) : String :=
-    match file.path.splitOn FilePath.pathDelimiter with
-    | []        => ""
-    | parts     => parts.getLastD ""
+    (file.path.splitOn FilePath.pathDelimiter).getLastD ""
 
   -- find a directory in the subtree of the root directory
   def findDirectory (root: File) (path : String) : Option File :=
@@ -55,27 +36,27 @@ namespace File
     | File.file _, _ => none
     findDirectoryAux root path
 
-def replaceDirectory (root: File) (path : String) (newDirectory : File) : File :=
-  let rec replaceDirectoryAux : File → String → File → File
-    | File.directory current_path children, path, newDirectory =>
-      if current_path == path then
-        newDirectory
-      else
-        match children with
-        | none => File.directory current_path none
-        | some childrenList =>
-          let updatedChildren :=
-            childrenList.map (λ child =>
-              match child with
-              | File.directory p _ =>
-                if p == path then newDirectory
-                else replaceDirectoryAux child path newDirectory
-              | _ => child
-            )
-          File.directory current_path (some updatedChildren)
-    | File.file _, _, _ => root
-    decreasing_by sorry
-  replaceDirectoryAux root path newDirectory
+  def replaceFile (root: File) (path : String) (newFile : File) : File :=
+    let rec replaceFileAux (file: File) (path: String) : File :=
+      match file with
+      | File.directory current_path children =>
+        if current_path == path then
+          newFile
+        else
+          match children with
+          | none => file
+          | some [] => file
+          | some (f :: fs) =>
+            let newChildren := replaceFileAux f path :: match (replaceFileAux (File.directory current_path fs) path) with
+              | File.directory _ (some children) => children
+              | _ => []
+            File.directory current_path (some newChildren)
+      | File.file current_path =>
+        if current_path == path then
+          newFile
+        else
+          file
+    replaceFileAux root path
 
   def findPreviousFile : List File → String → String
     | [], currentFilePath => currentFilePath
@@ -141,4 +122,4 @@ def exRoot := (File.directory "c:\\src" (some [
 ]))
 
 #eval exRoot
-#eval exRoot.replaceDirectory "c:\\src\\dir1" (File.directory "c:\\src\\dir1" none)
+#eval exRoot.replaceFile "c:\\src\\dir1" (File.directory "c:\\src\\dir1" none)
