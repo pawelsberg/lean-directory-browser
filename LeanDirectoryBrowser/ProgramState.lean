@@ -40,15 +40,14 @@ namespace ProgramState
   def displayFileDeselectedFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 255 255 255
   def displayFileSelectedFontColour (_ : ProgramState) : Al.AllegroColor := Al.AllegroColor.mk 255 255 150
 
-  def processKeyDown (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
+  def processMovingSelectionForward (ps : ProgramState) (positionsToMove : Nat) : ProgramState :=
+     match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
     | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
-      -- selected_file_path is the next file in the list
-      let newSelectedFilePath := File.findNextFile children selectedFilePath
-      let moveRight := (File.indexOfFile children newSelectedFilePath) > (File.indexOfFile children fileOnTopPath) + displayRows * displayColumns - 1
-      let newFileOnTopPath := if moveRight
+      let newSelectedFilePath := ((List.range positionsToMove).map toString).foldl (λ currentFilePath _ => File.findNextFilePath children currentFilePath) selectedFilePath
+      let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children fileOnTopPath)) / displayRows + 1 - displayColumns
+      let newFileOnTopPath := if moveRightColumns > 0
         then
-          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) + displayRows
+          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) + displayRows * moveRightColumns
           match (children.drop newFileOnTopIndex) with
           | [] => ps.fileOnTopPath -- shouldn't happen
           | f :: _ => f.path
@@ -56,127 +55,67 @@ namespace ProgramState
       { ps with selectedFilePath := newSelectedFilePath,
                 fileOnTopPath := newFileOnTopPath}
     | _, _, _, _, _ => ps
+
+  def processKeyDown (ps : ProgramState) : ProgramState :=
+    -- selected_file_path is the next file in the list
+    processMovingSelectionForward ps 1
 
   def processKeyRight (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
       -- selected_file_path is the file in the next column
-      let newSelectedFilePath := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) selectedFilePath
-      let moveRight := (File.indexOfFile children newSelectedFilePath) > (File.indexOfFile children fileOnTopPath) + displayRows * displayColumns - 1
-      let newFileOnTopPath := if moveRight
-        then
-          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) + displayRows
-          match (children.drop newFileOnTopIndex) with
-          | [] => ps.fileOnTopPath -- shouldn't happen
-          | f :: _ => f.path
-        else ps.fileOnTopPath
-      { ps with selectedFilePath := newSelectedFilePath,
-                fileOnTopPath := newFileOnTopPath}
-    | _, _, _, _, _ => ps
+    match ps.displayRows with
+    | some displayRows => processMovingSelectionForward ps displayRows
+    | _ => ps
 
   def processKeyPageDown (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
       -- selected_file_path is the file on the next page
-      let newSelectedFilePath := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) selectedFilePath
-      let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children fileOnTopPath)) / displayRows + 1 - displayColumns
-      let newFileOnTopPath := if moveRightColumns > 0
-        then
-          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) + displayRows * moveRightColumns
-          match (children.drop newFileOnTopIndex) with
-          | [] => ps.fileOnTopPath -- shouldn't happen
-          | f :: _ => f.path
-        else ps.fileOnTopPath
-      { ps with selectedFilePath := newSelectedFilePath,
-                fileOnTopPath := newFileOnTopPath }
-    | _, _, _, _, _ => ps
+    match ps.displayRows, ps.displayColumns with
+    | some displayRows, some displayColumns => processMovingSelectionForward ps (displayRows * displayColumns)
+    | _, _ => ps
 
   def processKeyEnd (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
-      -- selected_file_path is the last file in the list
-      let newSelectedFilePath := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findNextFile children currentFilePath) selectedFilePath
-      let moveRightColumns : Nat := ((File.indexOfFile children newSelectedFilePath) - (File.indexOfFile children fileOnTopPath)) / displayRows + 1 - displayColumns
-      let newFileOnTopPath := if moveRightColumns > 0
+    -- selected_file_path is the last file in the list
+    match ps.currentDirectory with
+    | File.directory _ (some children) => processMovingSelectionForward ps children.length
+    | _ => ps
+
+  def processMovingSelectionBackward (ps : ProgramState) (positionsToMove : Nat) : ProgramState :=
+    match ps.currentDirectory, ps.displayRows, ps.selectedFilePath, ps.fileOnTopPath with
+    | File.directory _ (some children), some displayRows, some selectedFilePath, some fileOnTopPath =>
+      let newSelectedFilePath := ((List.range positionsToMove).map toString).foldl (λ currentFilePath _ => File.findPreviousFilePath children currentFilePath) selectedFilePath
+      let moveLeftColumns : Nat := ((File.indexOfFile children fileOnTopPath) - (File.indexOfFile children newSelectedFilePath) + (displayRows - 1) ) / displayRows
+      let newFileOnTopPath := if moveLeftColumns > 0
         then
-          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) + displayRows * moveRightColumns
+          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) - displayRows * moveLeftColumns
           match (children.drop newFileOnTopIndex) with
           | [] => ps.fileOnTopPath -- shouldn't happen
           | f :: _ => f.path
         else ps.fileOnTopPath
       { ps with selectedFilePath := newSelectedFilePath,
                 fileOnTopPath := newFileOnTopPath }
-    | _, _, _, _, _ => ps
+    | _, _, _, _ => ps
+
 
   def processKeyUp (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ (some children), some displayRows, some selectedFilePath, some fileOnTopPath =>
-      -- selected_file_path is the previous file in the list
-      let newSelectedFilePath := File.findPreviousFile children selectedFilePath
-      let moveLeft := (File.indexOfFile children newSelectedFilePath) < (File.indexOfFile children fileOnTopPath)
-      let newFileOnTopPath := if moveLeft
-        then
-          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) - displayRows
-          match (children.drop newFileOnTopIndex) with
-          | [] => ps.fileOnTopPath -- shouldn't happen
-          | f :: _ => f.path
-        else ps.fileOnTopPath
-
-      { ps with selectedFilePath := newSelectedFilePath,
-                fileOnTopPath := newFileOnTopPath }
-    | _, _, _, _ => ps
+    -- selected_file_path is the previous file in the list
+    processMovingSelectionBackward ps 1
 
   def processKeyLeft (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ (some children), some displayRows, some selectedFilePath, some fileOnTopPath =>
-     -- selected_file_path is the file in the previous column
-      let newSelectedFilePath := ((List.range displayRows).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) selectedFilePath
-      let moveLeft := (File.indexOfFile children newSelectedFilePath) < (File.indexOfFile children fileOnTopPath)
-      let newFileOnTopPath := if moveLeft
-        then
-          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) - displayRows
-          match (children.drop newFileOnTopIndex) with
-          | [] => ps.fileOnTopPath -- shouldn't happen
-          | f :: _ => f.path
-        else ps.fileOnTopPath
-
-      { ps with selectedFilePath := newSelectedFilePath,
-                fileOnTopPath := newFileOnTopPath }
-    | _, _, _, _ => ps
+    -- selected_file_path is the file in the previous column
+    match ps.displayRows with
+    | some displayRows => processMovingSelectionBackward ps displayRows
+    | _ => ps
 
   def processKeyPageUp (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ (some children), some displayRows, some displayColumns, some selectedFilePath, some fileOnTopPath =>
-      -- selected_file_path is the file on the previous page
-      let newSelectedFilePath := ((List.range (displayRows * displayColumns)).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) selectedFilePath
-      let moveLeftColumns : Nat := ((File.indexOfFile children fileOnTopPath) - (File.indexOfFile children newSelectedFilePath) - 1) / displayRows + 1
-      let newFileOnTopPath := if moveLeftColumns > 0
-        then
-          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) - displayRows * moveLeftColumns
-          match (children.drop newFileOnTopIndex) with
-          | [] => ps.fileOnTopPath -- shouldn't happen
-          | f :: _ => f.path
-        else ps.fileOnTopPath
-      { ps with selectedFilePath := newSelectedFilePath,
-                fileOnTopPath := newFileOnTopPath }
-    | _, _, _, _, _ => ps
+    -- selected_file_path is the file on the previous page
+    match ps.displayRows, ps.displayColumns with
+    | some displayRows, some displayColumns => processMovingSelectionBackward ps (displayRows * displayColumns)
+    | _, _ => ps
 
   def processKeyHome (ps : ProgramState) : ProgramState :=
-    match ps.currentDirectory, ps.displayRows, ps.displayColumns, ps.selectedFilePath, ps.fileOnTopPath with
-    | File.directory _ (some children), some displayRows, some _, some selectedFilePath, some fileOnTopPath =>
-      -- selected_file_path is the first file on the list
-      let newSelectedFilePath := ((List.range children.length).map toString).foldl (λ currentFilePath _ => File.findPreviousFile children currentFilePath) selectedFilePath
-      let moveLeftColumns : Nat := ((File.indexOfFile children fileOnTopPath) - (File.indexOfFile children newSelectedFilePath) - 1) / displayRows + 1
-      let newFileOnTopPath := if moveLeftColumns > 0
-        then
-          let newFileOnTopIndex := (File.indexOfFile children fileOnTopPath) - displayRows * moveLeftColumns
-          match (children.drop newFileOnTopIndex) with
-          | [] => ps.fileOnTopPath -- shouldn't happen
-          | f :: _ => f.path
-        else ps.fileOnTopPath
-      { ps with selectedFilePath := newSelectedFilePath,
-                fileOnTopPath := newFileOnTopPath }
-    | _, _, _, _, _ => ps
+    -- selected_file_path is the first file on the list
+    match ps.currentDirectory with
+    | File.directory _ (some children) => processMovingSelectionBackward ps children.length
+    | _ => ps
 
   def processKeyQ (ps : ProgramState) : ProgramState :=
     { ps with exitRequested := true }
