@@ -14,24 +14,9 @@ structure ProgramState :=
   selectedFilePath : Option String -- none if empty directory
   fileOnTopPath: Option String -- none if empty directory
   exitRequested : Bool
-  deriving Repr
+  deriving Repr, BEq
 
 namespace ProgramState
-  def beq : ProgramState → ProgramState → Bool
-  | ProgramState.mk displayWidth1 displayHeight1 displayRows1 displayColumns1 displayColumnWidth1 root1 currentDirectoryPath1 selectedFilePath1 fileOnTopPath1 exitRequested1,
-    ProgramState.mk displayWidth2 displayHeight2 displayRows2 displayColumns2 displayColumnWidth2 root2 currentDirectoryPath2 selectedFilePath2 fileOnTopPath2 exitRequested2=>
-    displayWidth1 == displayWidth2
-    && displayHeight1 == displayHeight2
-    && displayRows1 == displayRows2
-    && displayColumns1 == displayColumns2
-    && displayColumnWidth1 == displayColumnWidth2
-    && root1 == root2
-    && currentDirectoryPath1 == currentDirectoryPath2
-    && selectedFilePath1 == selectedFilePath2
-    && fileOnTopPath1 == fileOnTopPath2
-    && exitRequested1 == exitRequested2
-
-  instance : BEq ProgramState := ⟨ProgramState.beq⟩
 
   def currentDirectory (ps : ProgramState) : Option File :=
     ps.root.findDirectory ps.currentDirectoryPath
@@ -303,7 +288,7 @@ namespace ProgramState
       let children ← File.readChildren path
       let sortedChildren := File.sortFiles children
       pure { ps with
-        root := ps.root.replaceDirectory path (File.directory path (some sortedChildren))
+        root := ps.root.replaceFile path (File.directory path (some sortedChildren))
         selectedFilePath := match sortedChildren with
                             | [] => none
                             | f :: _ => some f.path
@@ -313,8 +298,6 @@ namespace ProgramState
       }
     | _ => pure ps
 
-
-  --set_option diagnostics true
   def callCodeProxy (ps prevPs: ProgramState) (ppc : Al.CodeProxyProcess) : IO Unit := do
     match ps.displayHeight, ps.displayWidth, ps.displayRows, ps.displayColumns,
       ps.displayColumnWidth, ps.currentDirectoryPath, ps.fileOnTopPath, prevPs.displayHeight, prevPs.currentDirectoryPath with
