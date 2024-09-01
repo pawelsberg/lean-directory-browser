@@ -14,8 +14,8 @@ def main : IO Unit := do
   cpp.init
 
   let initState := {example_program_state  with
-    root := File.directory "c:\\Windows" none,
-    currentDirectoryPath := "c:\\Windows"
+    root := File.directory "c:\\" none,
+    currentDirectoryPath := "c:\\"
   }
   let mut state ← ProgramState.withLoadedChildren initState
 
@@ -29,10 +29,10 @@ def main : IO Unit := do
     let newStateWithLoadedChildren ← ProgramState.withLoadedChildren newState
 
     if not newStateWithLoadedChildren.exitRequested then
-      if not (newStateWithLoadedChildren.beq state) then do
+      if not (newStateWithLoadedChildren == state) then do
         newStateWithLoadedChildren.callCodeProxy state cpp
-        IO.println "State changed:"
-        IO.println (repr newStateWithLoadedChildren).pretty
+        IO.println "State changed"
+        --IO.println (repr newStateWithLoadedChildren).pretty
       else do
         IO.println "No state change"
       IO.sleep (ms:=1)
