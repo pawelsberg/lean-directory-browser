@@ -1,4 +1,5 @@
 import LeanDirectoryBrowser.ProgramState
+import LeanDirectoryBrowser.ProgramState.CallCodeProxy
 
 namespace ProgramState
   def processMovingSelectionForward (ps : ProgramState) (positionsToMove : Nat) : ProgramState :=
