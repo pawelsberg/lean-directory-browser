@@ -4,7 +4,7 @@ import LeanDirectoryBrowser.ProgState.DisplayConstants
 import LeanDirectoryBrowser.List
 
 inductive ProgState
-| start (currentDirectoryPath : String) -- loading root
+| start (rootDirectoryPath : String) -- loading root
 | firstDirectoryLoaded (root : File) (hRootIsDir : File.isDirectory root) -- getting display width
 | widthProvided (root : File) (hRootIsDir : File.isDirectory root) (displayWidth : Nat) -- getting display height
 | heightProvided (root : File) (hRootIsDir : File.isDirectory root) (currentDirectory : File) (hCurrentDirectoryIsDir : File.isDirectory currentDirectory) (displayWidth : Nat) (displayHeight : Nat) (displayRows : Nat) -- getting display column width
@@ -16,8 +16,8 @@ inductive ProgState
 deriving Repr, BEq
 
 def isProgStateStart : ProgState → Prop
-| ProgState.start _ => True
-| _ => False
+  | ProgState.start _ => True
+  | _ => False
 
 def isProgStateHeightProvided : ProgState → Prop
 | ProgState.heightProvided _ _ _ _ _ _ _ => True
@@ -32,8 +32,8 @@ def isProgStateEmptyFolderBrowser : ProgState → Prop
 | _ => False
 
 def isProgStateChangingDirectory : ProgState → Prop
-| ProgState.changingDirectory _ _ _ _ _ _ _ => True
-| _ => False
+  | ProgState.changingDirectory _ _ _ _ _ _ _ => True
+  | _ => False
 
 def isProgStateError : ProgState → Prop
 | ProgState.error _ _ => True
@@ -42,6 +42,16 @@ def isProgStateError : ProgState → Prop
 def isProgStateExit : ProgState → Prop
 | ProgState.exit => True
 | _ => False
+
+--
+def isProgStateLoading (ps : ProgState) : Prop :=
+  match ps with
+  | ProgState.start _ => true
+  | ProgState.changingDirectory _ _ _ _ _ _ _ => true
+  | _ => false
+
+-- TODO: why the below is not working to eliminate the match cases but the above does?
+def isProgStateLoading2 (ps : ProgState) : Prop := isProgStateStart ps ∨ isProgStateChangingDirectory ps
 
 def initFonts : List Code :=
   [
@@ -78,7 +88,7 @@ def callCodeProxyToRequestColumnWidth (ps : ProgState) (hPsIsEmpty: isProgStateH
       Code.drawStoredFontStr DisplayConstants.displayErrorFontColour DisplayConstants.displayTopHorizontalMargin DisplayConstants.displayTopVerticalMargin DisplayConstants.displayErrorFontStorageName FontAlignFlags.left "String width just requested"
     ]
 
-def callCodeProxyWhileWaitingForColumnWidth (ps : ProgramState) : List Code :=
+def callCodeProxyWhileWaitingForColumnWidth (ps : ProgState) (hPsIsChangingDir: isProgStateChangingDirectory ps) : List Code :=
   [
     Code.clearToColor AllegroColor.black,
     Code.drawStoredFontStr DisplayConstants.displayErrorFontColour DisplayConstants.displayTopHorizontalMargin DisplayConstants.displayTopVerticalMargin DisplayConstants.displayErrorFontStorageName FontAlignFlags.left "String width requested previosly"
@@ -144,11 +154,6 @@ def callCodeProxyToDrawFolder (ps : ProgState) (hPsIsEmptyFolderBrowserOrFolderB
     ]
   | _ => [] -- shouldn't happen (hPsInError)
 
-  def callCodeProxyWhenColumnWidthNeeded (ps : ProgState) (currentDirectoryPath previousDirectoryPath : String) : List Code :=
-    if currentDirectoryPath != previousDirectoryPath then
-      (callCodeProxyToRequestColumnWidth ps sorry)
-    else
-      (callCodeProxyWhileWaitingForColumnWidth ps)
 
 def generateCodeForProxy (ps prevPs: ProgState) : List Code :=
   match ps with
@@ -161,11 +166,11 @@ def generateCodeForProxy (ps prevPs: ProgState) : List Code :=
   | ProgState.heightProvided root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows =>
     callCodeProxyToRequestColumnWidth (ProgState.heightProvided root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows) True.intro
   | ProgState.emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsLoadedEmptyDir displayWidth displayHeight displayRows =>
-    callCodeProxyToDrawFolder (ProgState.emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsLoadedEmptyDir displayWidth displayHeight displayRows) sorry
+    callCodeProxyToDrawFolder (ProgState.emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsLoadedEmptyDir displayWidth displayHeight displayRows) (Or.inl True.intro)
   | ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsNonEmptyDirectory displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath =>
-    callCodeProxyToDrawFolder (ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsNonEmptyDirectory displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath) sorry
+    callCodeProxyToDrawFolder (ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsNonEmptyDirectory displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath) (Or.inr True.intro)
   | ProgState.changingDirectory root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows =>
-    callCodeProxyWhileWaitingForColumnWidth (ProgState.changingDirectory root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows)
+    callCodeProxyWhileWaitingForColumnWidth (ProgState.changingDirectory root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows) sorry
   | ProgState.error nextState errorMessage =>
     callCodeProxyWhileInError (ProgState.error nextState errorMessage) True.intro
   | ProgState.exit =>

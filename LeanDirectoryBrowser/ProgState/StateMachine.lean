@@ -4,16 +4,16 @@ import LeanDirectoryBrowser.ProgState.DisplayConstants
 
 namespace ProgState
 
-  def withLoadedChildren (ps : ProgState) (_: isProgStateStart ps ∨ isProgStateChangingDirectory ps) : IO ProgState :=
+  def withLoadedChildren (ps : ProgState) (_: isProgStateLoading ps) : IO ProgState :=
     match ps with
-    | ProgState.start currentDirectoryPath => do
-      let newChildren ← File.readChildren currentDirectoryPath
-      let currentDirectory := File.directory currentDirectoryPath (some newChildren)
-      pure (ProgState.firstDirectoryLoaded currentDirectory True.intro)
-    | ProgState.changingDirectory root _ currentDirectory _ displayWidth displayHeight displayRows =>
+    | start rootDirectoryPath => do
+      let children ← File.readChildren rootDirectoryPath
+      let currentDirectory := File.directory rootDirectoryPath (some children)
+      pure (firstDirectoryLoaded currentDirectory True.intro)
+    | changingDirectory root _ currentDirectory _ displayWidth displayHeight displayRows =>
       match currentDirectory with
       | File.directory _ (some _) =>
-        pure ps
+        pure ps -- already loaded
       | File.directory path none => do
           let children ← File.readChildren path
           let sortedChildren := File.sortFiles children
@@ -22,11 +22,10 @@ namespace ProgState
           match newRoot with
             | File.directory _ newRootChildren =>
               match sortedChildren with
-                  | [] => pure (ProgState.emptyFolderBrowser (File.directory newRoot.path newRootChildren) True.intro (File.directory path (some [])) True.intro displayWidth displayHeight displayRows)
-                  | _ => pure (ProgState.heightProvided (File.directory newRoot.path newRootChildren) True.intro loadedCurrentDirectory True.intro displayWidth displayHeight displayRows)
-            | _ => pure ps
-
-    | _ => pure ps -- TODO - use hLoadingState to remove it
+                  | [] => pure (emptyFolderBrowser (File.directory newRoot.path newRootChildren) True.intro (File.directory path (some [])) True.intro displayWidth displayHeight displayRows)
+                  | _ => pure (heightProvided (File.directory newRoot.path newRootChildren) True.intro loadedCurrentDirectory True.intro displayWidth displayHeight displayRows)
+            | _ => pure ps -- shouldn't happen - root should always be a directory
+    | _ => pure ps -- This option shouldn't be needed: compiler doesn't need it but it breaks the program if it's not there! Is it a bug in Lean?
 
   def processMovingSelectionForward (ps : ProgState) (_ : isProgStateFolderBrowser ps) (positionsToMove : Nat) : ProgState :=
      match ps with
@@ -65,17 +64,17 @@ namespace ProgState
   -- Returns a new state and a boolean indicating if the input was processed
   def process (ps : ProgState) (input : String) : ProgState × Bool :=
     match ps with
-    | ProgState.start _ => ⟨ps, false⟩ -- doesn't process - needs IO to load children
-    | ProgState.firstDirectoryLoaded root hRootIsDir =>
+    | start _ => ⟨ps, false⟩ -- doesn't process - needs IO to load children
+    | firstDirectoryLoaded root hRootIsDir =>
       if input.startsWith "DISPLAY_WIDTH:" then
         ⟨ProgState.widthProvided root hRootIsDir (input.drop "DISPLAY_WIDTH:".length).toNat!, true⟩
       else ⟨ps, false⟩
-    | ProgState.widthProvided root hRootIsDir displayWidth =>
+    | widthProvided root hRootIsDir displayWidth =>
       if input.startsWith "DISPLAY_HEIGHT:" then
         let height := (input.drop "DISPLAY_HEIGHT:".length).toNat!
         ⟨ProgState.heightProvided root hRootIsDir root hRootIsDir displayWidth height ((height - DisplayConstants.displayTopVerticalMargin - DisplayConstants.displayHeaderFontSize - DisplayConstants.displayHeaderMargin) / DisplayConstants.displayFileFontSize),true⟩
       else ⟨ps, false⟩
-    | ProgState.heightProvided root hRootIsDir currentDirectory hCurrentDirIsDir displayWidth displayHeight displayRows =>
+    | heightProvided root hRootIsDir currentDirectory hCurrentDirIsDir displayWidth displayHeight displayRows =>
       let hcd := hCurrentDirIsDir
       match currentDirectory with
       | File.directory _ optionChildren =>
@@ -94,7 +93,7 @@ namespace ProgState
                 ⟨ps, false⟩ -- only process STR_WIDTH at this stage
           | none => ⟨ProgState.changingDirectory root hRootIsDir currentDirectory hcd displayWidth displayHeight displayRows, false⟩
       | _ => ⟨ps, false⟩ -- shouldn't happen - currentDirectory should always be a directory
-    | ProgState.emptyFolderBrowser root hRootIsDir currentDirectory _ displayWidth displayHeight displayRows =>
+    | emptyFolderBrowser root hRootIsDir currentDirectory _ displayWidth displayHeight displayRows =>
       match input with
       | "KEY_DOWN:KeyBackspace" =>
           match currentDirectory with
@@ -110,7 +109,7 @@ namespace ProgState
       | "KEY_DOWN:KeyQ" => ⟨ProgState.exit, true⟩
       | "DONE." => ⟨ProgState.exit, true⟩
       | _ => ⟨ps, false⟩ -- only process KEY_DOWN:KeyBackspace, KEY_DOWN:KeyQ and DONE
-    | ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath =>
+    | folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath =>
       let folderBrowserPs := ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath
       match input with
       | "KEY_DOWN:KeyDown" => ⟨processMovingSelectionForward folderBrowserPs True.intro 1, true⟩
@@ -147,7 +146,7 @@ namespace ProgState
       | "KEY_DOWN:KeyQ" => ⟨ProgState.exit, true⟩
       | "DONE." => ⟨ProgState.exit, true⟩
       | _ => ⟨ps, false⟩ -- only process KEY_DOWN:KeyDown, KEY_DOWN:KeyRight, KEY_DOWN:KeyPageDown, KEY_DOWN:KeyEnd, KEY_DOWN:KeyUp, KEY_DOWN:KeyLeft, KEY_DOWN:KeyPageUp, KEY_DOWN:KeyHome, KEY_DOWN:KeyBackspace, KEY_DOWN:KeyQ and DONE
-    | ProgState.changingDirectory root hRootIsDir currentDirectory hCurrentDirIsDir displayWidth displayHeight displayRows =>
+    | changingDirectory root hRootIsDir currentDirectory hCurrentDirIsDir displayWidth displayHeight displayRows =>
       let hcd := hCurrentDirIsDir
       match currentDirectory with
       | File.directory _ optionChildren =>
