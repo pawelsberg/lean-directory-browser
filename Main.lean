@@ -1,54 +1,52 @@
-import LeanDirectoryBrowser.ProgramState
-import LeanDirectoryBrowser.ProgramState.Processing
-import LeanDirectoryBrowser.ProgramState.CallCodeProxy
+import LeanDirectoryBrowser.ProgState.ProgState
+import LeanDirectoryBrowser.ProgState.ProgStateCode
+import LeanDirectoryBrowser.ProgState.StateMachine
 import LeanDirectoryBrowser.Allegro
 
-def printWindowsDirectory (children: List File): IO Unit := do
-  IO.println (repr children).pretty
-
 def main : IO Unit := do
-  let (cpp : Al.CodeProxyProcess) ← IO.Process.spawn {
+  let (cpp : CodeProxyProcess) ← IO.Process.spawn {
     cmd := "Al/CodeProxy.Console.exe",
     args := #[],
     stdin := IO.Process.Stdio.piped,
     stdout := IO.Process.Stdio.piped
     }
-  cpp.init
-
-  let initState := {example_program_state  with
-    root := File.directory "c:\\" none,
-    currentDirectoryPath := "c:\\"
-  }
-  let mut state ← ProgramState.withLoadedChildren initState
-
-  state.initFonts cpp
-  cpp.run
+  cpp.writeCode Code.init
+  cpp.flush
+  cpp.writeCodeList initFonts
+  cpp.writeCode Code.run
+  cpp.flush
+  let initState : ProgState := ProgState.start "c:\\"
+  let mut state ← ProgState.withLoadedChildren initState
+  cpp.writeCodeList (generateCodeForProxy state)
+  cpp.writeCode Code.run
   cpp.flush
   repeat do
     let alOutput ← cpp.getOutputLine
     IO.println ("IN:" ++ alOutput)
-    let newState := ProgramState.process state alOutput
-    let newStateWithLoadedChildren ← ProgramState.withLoadedChildren newState
-
-    if not newStateWithLoadedChildren.exitRequested then
-      if not (newStateWithLoadedChildren == state) then do
-        newStateWithLoadedChildren.callCodeProxy state cpp
-        IO.println "State changed"
-        --IO.println (repr newStateWithLoadedChildren).pretty
-      else do
-        IO.println "No state change"
-      IO.sleep (ms:=1)
-      state := newStateWithLoadedChildren
-      continue
-    else
+    let newStatePossiblyWihoutLoadedChildren := ProgState.process state alOutput
+    let newState ← ProgState.withLoadedChildren newStatePossiblyWihoutLoadedChildren
+    match newState with
+    | ProgState.exit => do
       IO.println "Program ending..."
-      newStateWithLoadedChildren.destroyFonts cpp
-      cpp.run
+      cpp.writeCodeList destroyFonts
+      cpp.writeCode Code.run
       cpp.flush
-      cpp.exit
-      cpp.run
+      cpp.writeCode Code.exit
+      cpp.writeCode Code.run
       cpp.flush
       break
+    | _ => do
+      if not (newState == state) then do
+        cpp.writeCodeList (generateCodeForProxy newState)
+        cpp.writeCode Code.run
+        cpp.flush
+        IO.println "State changed"
+        -- IO.println (repr newState).pretty
+      else do
+        IO.println "No state change"
+      IO.sleep (ms := 1);
+      state := newState
+      continue
 
   IO.println "Ended."
   cpp.waitForProcessExit >>= IO.print

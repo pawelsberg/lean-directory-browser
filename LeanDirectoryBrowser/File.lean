@@ -9,10 +9,25 @@ inductive File : Type
   deriving Repr, BEq
 
 namespace File
+  def isDirectory : File → Prop
+    | directory _ _ => True
+    | file _ => False
+  def isLoadedNonEmptyDirectory : File → Prop
+    | directory _ (some children) =>
+      match children with
+      | [] => False
+      | _ => True
+    | _ => False
+  def isLoadedEmptyDirectory : File → Prop
+    | directory _ (some children) =>
+      match children with
+      | [] => True
+      | _ => False
+    | _ => False
+
   def path : File → String
     | directory path _ => path
     | file path => path
-
   def parentPath (file: File): String :=
     FilePath.parentPath file.path
 
