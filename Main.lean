@@ -1,9 +1,7 @@
 import LeanDirectoryBrowser.ProgState.ProgState
+import LeanDirectoryBrowser.ProgState.ProgStateCode
 import LeanDirectoryBrowser.ProgState.StateMachine
 import LeanDirectoryBrowser.Allegro
-
-def printWindowsDirectory (children: List File): IO Unit := do
-  IO.println (repr children).pretty
 
 def main : IO Unit := do
   let (cpp : CodeProxyProcess) ← IO.Process.spawn {
@@ -12,40 +10,42 @@ def main : IO Unit := do
     stdin := IO.Process.Stdio.piped,
     stdout := IO.Process.Stdio.piped
     }
-  cpp.init
+  cpp.writeCode Code.init
   cpp.flush
-  Code.writeCodeList cpp initFonts
-  cpp.run
+  cpp.writeCodeList initFonts
+  cpp.writeCode Code.run
   cpp.flush
-  let initState := ProgState.start "c:\\"
-  let mut state ← initState.withLoadedChildren sorry
-  callCodeProxy initState state cpp
-  cpp.run
+  let initState : ProgState := ProgState.start "c:\\"
+  let mut state ← ProgState.withLoadedChildren initState
+  cpp.writeCodeList (generateCodeForProxy state)
+  cpp.writeCode Code.run
   cpp.flush
   repeat do
     let alOutput ← cpp.getOutputLine
     IO.println ("IN:" ++ alOutput)
-    let newState := ProgState.process state alOutput
-    let newStateWithLoadedChildren ← ProgState.withLoadedChildren newState.1 sorry
-    match newStateWithLoadedChildren with
+    let newStatePossiblyWihoutLoadedChildren := ProgState.process state alOutput
+    let newState ← ProgState.withLoadedChildren newStatePossiblyWihoutLoadedChildren
+    match newState with
     | ProgState.exit => do
       IO.println "Program ending..."
-      Code.writeCodeList cpp destroyFonts
-      cpp.run
+      cpp.writeCodeList destroyFonts
+      cpp.writeCode Code.run
       cpp.flush
-      cpp.exit
-      cpp.run
+      cpp.writeCode Code.exit
+      cpp.writeCode Code.run
       cpp.flush
       break
     | _ => do
-      if not (newStateWithLoadedChildren == state) then do
-        callCodeProxy newStateWithLoadedChildren state cpp
+      if not (newState == state) then do
+        cpp.writeCodeList (generateCodeForProxy newState)
+        cpp.writeCode Code.run
+        cpp.flush
         IO.println "State changed"
-        IO.println (repr newStateWithLoadedChildren).pretty
+        -- IO.println (repr newState).pretty
       else do
         IO.println "No state change"
       IO.sleep (ms := 1);
-      state := newStateWithLoadedChildren
+      state := newState
       continue
 
   IO.println "Ended."
