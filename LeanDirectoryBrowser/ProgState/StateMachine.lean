@@ -1,6 +1,7 @@
 import LeanDirectoryBrowser.ProgState.ProgState
 import LeanDirectoryBrowser.File
 import LeanDirectoryBrowser.ProgState.DisplayConstants
+import LeanDirectoryBrowser.Allegro
 
 namespace ProgState
 
@@ -23,14 +24,30 @@ namespace ProgState
           match newRoot with
             | File.directory _ newRootChildren =>
               match sortedChildren with
-                  | [] => pure (emptyFolderBrowser (File.directory newRoot.path newRootChildren) True.intro (File.directory path (some [])) True.intro displayWidth displayHeight displayRows)
+                  | [] => pure (emptyFolderBrowser (File.directory newRoot.path newRootChildren) True.intro (File.directory path (some [])) True.intro displayWidth displayHeight displayRows False)
                   | _ => pure (heightProvided (File.directory newRoot.path newRootChildren) True.intro loadedCurrentDirectory True.intro displayWidth displayHeight displayRows)
             | _ => pure ps -- shouldn't happen - root should always be a directory
     | _ => pure ps
 
+
+  def withPowerShellStarted (cpp : CodeProxyProcess) (ps : ProgState) : IO ProgState := do
+    match ps with
+    | emptyFolderBrowser _ _ currentDirectory _ _ _ _ true
+    | folderBrowser _ _ currentDirectory _ _ _ _ _ _ _ _ true =>
+      cpp.writeCode (Code.startPowerShell currentDirectory.path)
+      cpp.writeCode Code.run
+      cpp.flush
+    | _ => pure ()
+    match ps with
+    | emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirIsLoadedEmptyDir displayWidth displayHeight displayRows true => do
+      pure (emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirIsLoadedEmptyDir displayWidth displayHeight displayRows false)
+    | folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath true =>
+      pure (folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath false)
+    | _ => pure ps -- not starting PowerShell
+
   def processMovingSelectionForward (ps : ProgState) (_ : isProgStateFolderBrowser ps) (positionsToMove : Nat) : ProgState :=
      match ps with
-     | folderBrowser root hRootIsDir currentDirectory hCurrDirIsDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath =>
+     | folderBrowser root hRootIsDir currentDirectory hCurrDirIsDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell =>
         let hcd := hCurrDirIsDir
         match currentDirectory with
         | File.directory _ (some children) =>
@@ -43,11 +60,11 @@ namespace ProgState
              | [] => fileOnTopPath -- shouldn't happen
              | f :: _ => f.path
            else fileOnTopPath
-         folderBrowser root hRootIsDir currentDirectory hcd displayWidth displayHeight displayRows displayColumns displayColumnWidth newSelectedFilePath newFileOnTopPath
+         folderBrowser root hRootIsDir currentDirectory hcd displayWidth displayHeight displayRows displayColumns displayColumnWidth newSelectedFilePath newFileOnTopPath runPowerShell
 
   def processMovingSelectionBackward (ps : ProgState) (_ : isProgStateFolderBrowser ps) (positionsToMove : Nat) : ProgState :=
     match ps with
-    | folderBrowser root hRootIsDir currentDirectory hCurrentDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath =>
+    | folderBrowser root hRootIsDir currentDirectory hCurrentDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell =>
       let hcd := hCurrentDir
       match currentDirectory with
       | File.directory _ (some children) =>
@@ -60,7 +77,7 @@ namespace ProgState
             | [] => fileOnTopPath -- shouldn't happen
             | f :: _ => f.path
           else fileOnTopPath
-        folderBrowser root hRootIsDir currentDirectory hcd displayWidth displayHeight displayRows displayColumns displayColumnWidth newSelectedFilePath newFileOnTopPath
+        folderBrowser root hRootIsDir currentDirectory hcd displayWidth displayHeight displayRows displayColumns displayColumnWidth newSelectedFilePath newFileOnTopPath runPowerShell
 
   def process (ps : ProgState) (input : String) : ProgState :=
     match ps with
@@ -80,7 +97,7 @@ namespace ProgState
       | File.directory _ optionChildren =>
         match optionChildren with
           | some children => match children with
-            | [] => emptyFolderBrowser root hRootIsDir (File.directory currentDirectory.path (some [])) True.intro displayWidth displayHeight displayRows
+            | [] => emptyFolderBrowser root hRootIsDir (File.directory currentDirectory.path (some [])) True.intro displayWidth displayHeight displayRows false
             | f :: remainingFiles => if input.startsWith "STR_WIDTH:" then
                 let columnWidth := (input.drop "STR_WIDTH:".length).toNat!
                 let displayColumnWidth := (columnWidth + DisplayConstants.displayColumnMargin)
@@ -88,12 +105,12 @@ namespace ProgState
                   | w, cw => (w / cw) -- todo - remove last extra column margin
                 let selectedFilePath := f.path
                 let fileOnTopPath := f.path
-                folderBrowser root hRootIsDir (File.directory currentDirectory.path (some (f :: remainingFiles))) True.intro displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath
+                folderBrowser root hRootIsDir (File.directory currentDirectory.path (some (f :: remainingFiles))) True.intro displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath false
               else
                 ps -- only process STR_WIDTH at this stage
           | none => changingDirectory root hRootIsDir currentDirectory hcd displayWidth displayHeight displayRows
       | _ => ps -- shouldn't happen - currentDirectory should always be a directory
-    | emptyFolderBrowser root hRootIsDir currentDirectory _ displayWidth displayHeight displayRows =>
+    | emptyFolderBrowser root hRootIsDir currentDirectory hCurrDirIsLoadedEmptyDir displayWidth displayHeight displayRows _ =>
       match input with
       | "KEY_DOWN:KeyBackspace" =>
           match currentDirectory with
@@ -105,12 +122,12 @@ namespace ProgState
               let newCurrentDirectory := File.directory parentPath (some children)
               heightProvided root hRootIsDir newCurrentDirectory True.intro displayWidth displayHeight displayRows
             | _, _ => ps -- shouldn't happen parent directory should always be a directory
-          | _ => ps -- shouldn't happen - currentDirectory should always be a directory
+      | "KEY_DOWN:KeyP" => emptyFolderBrowser root hRootIsDir currentDirectory hCurrDirIsLoadedEmptyDir displayWidth displayHeight displayRows true
       | "KEY_DOWN:KeyQ" => exit
       | "DONE." => exit
       | _ => ps -- only process KEY_DOWN:KeyBackspace, KEY_DOWN:KeyQ and DONE
-    | folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath =>
-      let folderBrowserPs := folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath
+    | folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell =>
+      let folderBrowserPs := folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell
       match input with
       | "KEY_DOWN:KeyDown" => processMovingSelectionForward folderBrowserPs True.intro 1
       | "KEY_DOWN:KeyRight" => processMovingSelectionForward folderBrowserPs True.intro displayRows
@@ -141,6 +158,7 @@ namespace ProgState
               let newCurrentDirectory := File.directory parentPath (some children)
               heightProvided root hRootIsDir newCurrentDirectory True.intro displayWidth displayHeight displayRows
             | _, _ => ps -- shouldn't happen parent directory should always be a directory
+      | "KEY_DOWN:KeyP" => folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath true
       | "KEY_DOWN:KeyQ" => exit
       | "DONE." => exit
       | _ => ps -- only process KEY_DOWN:KeyDown, KEY_DOWN:KeyRight, KEY_DOWN:KeyPageDown, KEY_DOWN:KeyEnd, KEY_DOWN:KeyUp, KEY_DOWN:KeyLeft, KEY_DOWN:KeyPageUp, KEY_DOWN:KeyHome, KEY_DOWN:KeyBackspace, KEY_DOWN:KeyQ and DONE
@@ -150,7 +168,7 @@ namespace ProgState
       | File.directory _ optionChildren =>
         match optionChildren with
           | some children => match children with
-            | [] => emptyFolderBrowser root hRootIsDir (File.directory currentDirectory.path (some [])) True.intro displayWidth displayHeight displayRows
+            | [] => emptyFolderBrowser root hRootIsDir (File.directory currentDirectory.path (some [])) True.intro displayWidth displayHeight displayRows false
             | f :: remainingFiles =>
               if input.startsWith "STR_WIDTH:" then
                 let columnWidth := (input.drop "STR_WIDTH:".length).toNat!
@@ -159,7 +177,7 @@ namespace ProgState
                   | w, cw => (w / cw) -- todo - remove last extra column margin
                 let selectedFilePath := f.path
                 let fileOnTopPath := f.path
-                folderBrowser root hRootIsDir (File.directory currentDirectory.path (some (f :: remainingFiles))) True.intro displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath
+                folderBrowser root hRootIsDir (File.directory currentDirectory.path (some (f :: remainingFiles))) True.intro displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath false
               else
                 ps -- only process STR_WIDTH at this stage
           | none => changingDirectory root hRootIsDir currentDirectory hcd displayWidth displayHeight displayRows

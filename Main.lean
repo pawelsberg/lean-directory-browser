@@ -24,7 +24,8 @@ def main : IO Unit := do
     let alOutput ← cpp.getOutputLine
     IO.println ("IN:" ++ alOutput)
     let newStatePossiblyWihoutLoadedChildren := ProgState.process state alOutput
-    let newState ← ProgState.withLoadedChildren newStatePossiblyWihoutLoadedChildren
+    let newStatePossiblyWithStartedPowerShell ← ProgState.withPowerShellStarted cpp newStatePossiblyWihoutLoadedChildren
+    let newState ← ProgState.withLoadedChildren newStatePossiblyWithStartedPowerShell
     match newState with
     | ProgState.exit => do
       IO.println "Program ending..."
