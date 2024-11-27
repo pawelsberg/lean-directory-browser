@@ -43,12 +43,12 @@ def callCodeProxyWhileWaitingForColumnWidth (ps : ProgState) (_: isProgStateChan
 
 def callCodeProxyToDrawFolder (ps : ProgState) (_: isProgStateAnyFolderBrowser ps ) : List Code :=
   match ps with
-  | ProgState.emptyFolderBrowser _ _ currentDirectory _ _ _ _ =>
+  | ProgState.emptyFolderBrowser _ _ currentDirectory _ _ _ _ _ =>
     [
       Code.clearToColor AllegroColor.black,
       Code.drawStoredFontStr DisplayConstants.displayHeaderFontColour DisplayConstants.displayTopHorizontalMargin DisplayConstants.displayTopVerticalMargin DisplayConstants.displayHeaderFontStorageName FontAlignFlags.left currentDirectory.path
     ]
-  | ProgState.folderBrowser root hRootIsDir currentDirectory _ displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath =>
+  | ProgState.folderBrowser root hRootIsDir currentDirectory _ displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath _ =>
     let draw_file : File → Nat → Nat → Code
     | file, x, y =>
       let filename := file.filename
@@ -100,18 +100,16 @@ def callCodeProxyToDrawFolder (ps : ProgState) (_: isProgStateAnyFolderBrowser p
 
 def generateCodeForProxy (ps : ProgState) : List Code :=
   match ps with
-  | ProgState.start _ =>
-    callCodeProxyWhileWaitingForDisplayWidthAndHeight
-  | ProgState.firstDirectoryLoaded _ _ =>
-    callCodeProxyWhileWaitingForDisplayWidthAndHeight
+  | ProgState.start _
+  | ProgState.firstDirectoryLoaded _ _
   | ProgState.widthProvided _ _ _ =>
     callCodeProxyWhileWaitingForDisplayWidthAndHeight
   | ProgState.heightProvided root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows =>
     callCodeProxyToRequestColumnWidth (ProgState.heightProvided root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows) True.intro
-  | ProgState.emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsLoadedEmptyDir displayWidth displayHeight displayRows =>
-    callCodeProxyToDrawFolder (ProgState.emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsLoadedEmptyDir displayWidth displayHeight displayRows) rfl
-  | ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsNonEmptyDirectory displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath =>
-    callCodeProxyToDrawFolder (ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsNonEmptyDirectory displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath) rfl
+  | ProgState.emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsLoadedEmptyDir displayWidth displayHeight displayRows runPowerShell =>
+    callCodeProxyToDrawFolder (ProgState.emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsLoadedEmptyDir displayWidth displayHeight displayRows runPowerShell) rfl
+  | ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsNonEmptyDirectory displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell =>
+    callCodeProxyToDrawFolder (ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsNonEmptyDirectory displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell) rfl
   | ProgState.changingDirectory root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows =>
     callCodeProxyWhileWaitingForColumnWidth (ProgState.changingDirectory root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows) True.intro
   | ProgState.error nextState errorMessage =>

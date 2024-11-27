@@ -61,6 +61,8 @@
         else acc ++ c.toString
       ) ""
 
+    def startPowerShell (workingDirectory : String): Code :=
+      Code.mk $ "System.Diagnostics.ProcessStartInfo psi = new System.Diagnostics.ProcessStartInfo { FileName = \"powershell\", UseShellExecute = true, CreateNoWindow = false, WorkingDirectory = @\"" ++ workingDirectory ++"\" }; System.Diagnostics.Process.Start(psi);"
     def clearToColor (c : AllegroColor) : Code :=
       Code.mk $ "Al.ClearToColor(" ++ toString c ++ ");"
     def storeFont (fontFileName : String) (size: Nat) (fontStorageName: String) : Code :=
