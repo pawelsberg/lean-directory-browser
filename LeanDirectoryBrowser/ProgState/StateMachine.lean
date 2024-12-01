@@ -123,6 +123,7 @@ namespace ProgState
               heightProvided root hRootIsDir newCurrentDirectory True.intro displayWidth displayHeight displayRows
             | _, _ => ps -- shouldn't happen parent directory should always be a directory
       | "KEY_DOWN:KeyP" => emptyFolderBrowser root hRootIsDir currentDirectory hCurrDirIsLoadedEmptyDir displayWidth displayHeight displayRows true
+      | "KEY_DOWN:KeyH" => help ps
       | "KEY_DOWN:KeyQ" => exit
       | "DONE." => exit
       | _ => ps -- only process KEY_DOWN:KeyBackspace, KEY_DOWN:KeyQ and DONE
@@ -159,6 +160,7 @@ namespace ProgState
               heightProvided root hRootIsDir newCurrentDirectory True.intro displayWidth displayHeight displayRows
             | _, _ => ps -- shouldn't happen parent directory should always be a directory
       | "KEY_DOWN:KeyP" => folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath true
+      | "KEY_DOWN:KeyH" => help ps
       | "KEY_DOWN:KeyQ" => exit
       | "DONE." => exit
       | _ => ps -- only process KEY_DOWN:KeyDown, KEY_DOWN:KeyRight, KEY_DOWN:KeyPageDown, KEY_DOWN:KeyEnd, KEY_DOWN:KeyUp, KEY_DOWN:KeyLeft, KEY_DOWN:KeyPageUp, KEY_DOWN:KeyHome, KEY_DOWN:KeyBackspace, KEY_DOWN:KeyQ and DONE
@@ -181,6 +183,12 @@ namespace ProgState
               else
                 ps -- only process STR_WIDTH at this stage
           | none => changingDirectory root hRootIsDir currentDirectory hcd displayWidth displayHeight displayRows
+    | help nextState =>
+      match input with
+      | "KEY_DOWN:KeyH"
+      | "KEY_DOWN:KeyEnter" => nextState
+      | "KEY_DOWN:KeyQ" => exit
+      | _ => ps -- only process KEY_DOWN:KeyEnter and KEY_DOWN:KeyQ
     | error nextState _ =>
       match input with
       | "KEY_DOWN:KeyEnter" => nextState
