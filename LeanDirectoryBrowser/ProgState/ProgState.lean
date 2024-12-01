@@ -11,6 +11,7 @@ inductive ProgState
 | emptyFolderBrowser (root : File) (hRootIsDir : File.isDirectory root) (currentDirectory : File) (hCurrentDirectoryIsLoadedEmptyDir : File.isLoadedEmptyDirectory currentDirectory) (displayWidth : Nat) (displayHeight : Nat) (displayRows : Nat) (runPowerShell : Bool) -- reacting to keys
 | folderBrowser (root : File) (hRootIsDir : File.isDirectory root) (currentDirectory : File) (hCurrentDirectoryIsNonEmptyDirectory : File.isLoadedNonEmptyDirectory currentDirectory) (displayWidth : Nat) (displayHeight : Nat) (displayRows : Nat) (displayColumns : Nat) (displayColumnWidth : Nat) (selectedFilePath : String) (fileOnTopPath : String) (runPowerShell : Bool) -- reacting to keys
 | changingDirectory (root : File) (hRootIsDir : File.isDirectory root) (currentDirectory : File) (hCurrentDirectoryIsDir : File.isDirectory currentDirectory) (displayWidth : Nat) (displayHeight : Nat) (displayRows : Nat) -- loading files when changing directory
+| help (nextState : ProgState)
 | error (nextState : ProgState) (errorMessage : String)
 | exit -- exit program
 deriving Repr, BEq
