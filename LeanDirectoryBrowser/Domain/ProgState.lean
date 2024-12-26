@@ -1,6 +1,6 @@
 import LeanDirectoryBrowser.File
 import LeanDirectoryBrowser.Allegro
-import LeanDirectoryBrowser.ProgState.DisplayConstants
+import LeanDirectoryBrowser.Domain.DisplayConstants
 import LeanDirectoryBrowser.List
 
 inductive ProgState
@@ -16,8 +16,25 @@ inductive ProgState
 | exit -- exit program
 deriving Repr, BEq
 
+def isProgStateLoading (ps : ProgState) : Prop :=
+  match ps with
+  | ProgState.start _
+  | ProgState.changingDirectory _ _ _ _ _ _ _ => true
+  | _ => false
+def isProgStateAnyFolderBrowser (ps : ProgState) : Prop :=
+  match ps with
+  | ProgState.emptyFolderBrowser _ _ _ _ _ _ _ _
+  | ProgState.folderBrowser _ _ _ _ _ _ _ _ _ _ _ _ => true
+  | _ => false
+
 def isProgStateStart : ProgState → Prop
 | ProgState.start _ => True
+| _ => False
+def isProgStateFirstDirectoryLoaded : ProgState → Prop
+| ProgState.firstDirectoryLoaded _ _ => True
+| _ => False
+def isProgStateWidthProvided : ProgState → Prop
+| ProgState.widthProvided _ _ _ => True
 | _ => False
 def isProgStateHeightProvided : ProgState → Prop
 | ProgState.heightProvided _ _ _ _ _ _ _ => True
@@ -31,19 +48,12 @@ def isProgStateEmptyFolderBrowser : ProgState → Prop
 def isProgStateChangingDirectory : ProgState → Prop
   | ProgState.changingDirectory _ _ _ _ _ _ _ => True
   | _ => False
+def isProgStateHelp : ProgState → Prop
+| ProgState.help _ => True
+| _ => False
 def isProgStateError : ProgState → Prop
 | ProgState.error _ _ => True
 | _ => False
 def isProgStateExit : ProgState → Prop
 | ProgState.exit => True
 | _ => False
-def isProgStateLoading (ps : ProgState) : Prop :=
-  match ps with
-  | ProgState.start _
-  | ProgState.changingDirectory _ _ _ _ _ _ _ => true
-  | _ => false
-def isProgStateAnyFolderBrowser (ps : ProgState) : Prop :=
-  match ps with
-  | ProgState.emptyFolderBrowser _ _ _ _ _ _ _ _
-  | ProgState.folderBrowser _ _ _ _ _ _ _ _ _ _ _ _ => true
-  | _ => false
