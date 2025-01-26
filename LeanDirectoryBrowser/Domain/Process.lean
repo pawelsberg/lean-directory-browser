@@ -11,24 +11,24 @@ import LeanDirectoryBrowser.Domain.ProgStates.Error
 namespace ProgState
 
   def process (ps : ProgState) (input : String) : ProgState :=
-    match ps with
+    match h : ps with
     | start _ => ps -- doesn't process any input
-    | firstDirectoryLoaded root hRootIsDir =>
-      processFirstDirectoryLoaded (firstDirectoryLoaded root hRootIsDir) True.intro input
-    | widthProvided root hRootIsDir displayWidth =>
-      processWidthProvided (widthProvided root hRootIsDir displayWidth) True.intro input
-    | heightProvided root hRootIsDir currentDirectory hCurrentDirIsDir displayWidth displayHeight displayRows =>
-      processHeightProvided (heightProvided root hRootIsDir currentDirectory hCurrentDirIsDir displayWidth displayHeight displayRows) True.intro input
-    | emptyFolderBrowser root hRootIsDir currentDirectory hCurrDirIsLoadedEmptyDir displayWidth displayHeight displayRows _ =>
-      processEmptyFolderBrowser (emptyFolderBrowser root hRootIsDir currentDirectory hCurrDirIsLoadedEmptyDir displayWidth displayHeight displayRows False) True.intro input
-    | folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell =>
-      processFolderBrowser (folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell) True.intro input
-    | changingDirectory root hRootIsDir currentDirectory hCurrentDirIsDir displayWidth displayHeight displayRows =>
-      processChangingDirectory (changingDirectory root hRootIsDir currentDirectory hCurrentDirIsDir displayWidth displayHeight displayRows) True.intro input
-    | help nextState =>
-      processHelp (help nextState) True.intro input
-    | error nextState errorMessage =>
-      processError (error nextState errorMessage) True.intro input
+    | firstDirectoryLoaded _ _ =>
+      FirstDirectoryLoaded.process ps (by simp [h, isProgStateFirstDirectoryLoaded]) input
+    | widthProvided _ _ _ =>
+      WidthProvided.process ps (by simp [h, isProgStateWidthProvided]) input
+    | heightProvided _ _ _ _ _ _ _ =>
+      HeightProvided.process ps (by simp [h, isProgStateHeightProvided]) input
+    | emptyFolderBrowser _ _ _ _ _ _ _ _ =>
+      EmptyFolderBrowser.process ps (by simp [h, isProgStateEmptyFolderBrowser]) input
+    | folderBrowser _ _ _ _ _ _ _ _ _ _ _ _ =>
+      FolderBrowser.process ps (by simp [h, isProgStateFolderBrowser]) input
+    | changingDirectory _ _ _ _ _ _ _ =>
+      ChangingDirectory.process ps (by simp [h, isProgStateChangingDirectory]) input
+    | help _ =>
+      Help.process ps (by simp [h, isProgStateHelp]) input
+    | error _ _ =>
+      Error.process ps (by simp [h, isProgStateError]) input
     | exit => ps -- doesn't process any input
 
 end ProgState

@@ -15,10 +15,10 @@ def main : IO Unit := do
     : IO.Process.SpawnArgs
     }
   let initState : ProgState := ProgState.start "c:\\"
-  cpp.writeCodeList (getCodeList initState)
+  cpp.writeCodeList (ProgState.getCodeList initState)
   cpp.flush
   let mut state ← ProgState.withLoadedChildren initState
-  cpp.writeCodeList (getCodeList state)
+  cpp.writeCodeList (ProgState.getCodeList state)
   cpp.flush
   repeat do
     let alOutput ← cpp.getOutputLine
@@ -27,7 +27,7 @@ def main : IO Unit := do
     let newStatePossiblyWithStartedPowerShell ← ProgState.withPowerShellStarted cpp newStateProcessed
     let newState ← ProgState.withLoadedChildren newStatePossiblyWithStartedPowerShell
     if not (newState == state) then do
-      cpp.writeCodeList (getCodeList newState)
+      cpp.writeCodeList (ProgState.getCodeList newState)
       cpp.flush
       IO.println "State changed"
       -- IO.println (repr newState).pretty

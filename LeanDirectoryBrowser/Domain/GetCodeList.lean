@@ -9,25 +9,27 @@ import LeanDirectoryBrowser.Domain.ProgStates.Help
 import LeanDirectoryBrowser.Domain.ProgStates.Error
 import LeanDirectoryBrowser.Domain.ProgStates.Exit
 
+namespace ProgState
 def getCodeList (ps : ProgState) : List Code :=
-  match ps with
-  | ProgState.start _ =>
-    getStartCodeList
-  | ProgState.firstDirectoryLoaded _ _ =>
-    getFirstDirectoryLoadedCodeList
-  | ProgState.widthProvided _ _ _ =>
-    getWidthProvidedCodeList
-  | ProgState.heightProvided root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows =>
-    getHeightProvidedCodeList (ProgState.heightProvided root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows) True.intro
-  | ProgState.emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsLoadedEmptyDir displayWidth displayHeight displayRows runPowerShell =>
-    getEmptyFolderBrowserCodeList (ProgState.emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsLoadedEmptyDir displayWidth displayHeight displayRows runPowerShell) True.intro
-  | ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsNonEmptyDirectory displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell =>
-    getFolderBrowserCodeList (ProgState.folderBrowser root hRootIsDir currentDirectory hCurrentDirectoryIsNonEmptyDirectory displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath runPowerShell) True.intro
-  | ProgState.changingDirectory root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows =>
-    getChangingDirectoryCodeList (ProgState.changingDirectory root hRootIsDir currentDirectory hCurrentDirectoryIsDir displayWidth displayHeight displayRows) True.intro
-  | ProgState.help nps =>
-    getHelpCodeList (ProgState.help nps) True.intro
-  | ProgState.error nextState errorMessage =>
-    getErrorCodeList (ProgState.error nextState errorMessage) True.intro
-  | ProgState.exit =>
-    getExitCodeList
+  match h: ps with
+  | start _ =>
+    Start.getCodeList
+  | firstDirectoryLoaded _ _ =>
+    FirstDirectoryLoaded.getCodeList
+  | widthProvided _ _ _ =>
+    WidthProvided.getCodeList
+  | heightProvided _ _ _ _ _ _ _ =>
+    HeightProvided.getCodeList ps (by simp [h, isProgStateHeightProvided])
+  | emptyFolderBrowser _ _ _ _ _ _ _ _ =>
+    EmptyFolderBrowser.getCodeList ps (by simp [h, isProgStateEmptyFolderBrowser])
+  | folderBrowser _ _ _ _ _ _ _ _ _ _ _ _ =>
+    FolderBrowser.getCodeList ps (by simp_all [h, isProgStateFolderBrowser])
+  | changingDirectory _ _ _ _ _ _ _ =>
+    ChangingDirectory.getCodeList ps (by simp [h, isProgStateChangingDirectory])
+  | help _ =>
+    Help.getCodeList ps (by simp [h, isProgStateHelp])
+  | error _ _ =>
+    Error.getCodeList ps (by simp [h, isProgStateError])
+  | exit =>
+    Exit.getCodeList
+end ProgState
