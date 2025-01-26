@@ -5,11 +5,11 @@ import LeanDirectoryBrowser.Allegro
 namespace ProgState
 
   def withPowerShellStarted (cpp : CodeProxyProcess) (ps : ProgState) : IO ProgState := do
-    match ps with
-    | emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirIsLoadedEmptyDir displayWidth displayHeight displayRows true => do
-      withPowerShellStartedInEmptyFolderBrowser cpp (emptyFolderBrowser root hRootIsDir currentDirectory hCurrentDirIsLoadedEmptyDir displayWidth displayHeight displayRows true) True.intro
-    | folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath true =>
-      withPowerShellStartedInFolderBrowser cpp (folderBrowser root hRootIsDir currentDirectory hCurrentDirIsNonEmptyDir displayWidth displayHeight displayRows displayColumns displayColumnWidth selectedFilePath fileOnTopPath true) True.intro
+    match h : ps with
+    | emptyFolderBrowser _ _ _ _ _ _ _ true => do
+      EmptyFolderBrowser.withPowerShellStarted cpp ps (by simp [h, isProgStateEmptyFolderBrowser])
+    | folderBrowser _ _ _ _ _ _ _ _ _ _ _ true =>
+      FolderBrowser.withPowerShellStarted cpp ps (by simp [h, isProgStateFolderBrowser])
     | _ => pure ps -- other states do not support starting PowerShell
 
 end ProgState
