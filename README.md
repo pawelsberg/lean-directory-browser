@@ -6,8 +6,7 @@ It is a windows folder explorer written in lean4 (using code-proxy).
 
 ```.lake/build/bin/Al```
 
-Code-proxy is available at [Github](https://github.com/pawelsberg/code-proxy). It requires version 0.2 .
-
+Code-proxy is available at [Github](https://github.com/pawelsberg/code-proxy). It requires version 0.3 .
 2. Build the project:
 
 ```lake build```
