@@ -1,7 +1,6 @@
 import LeanDirectoryBrowser.File
 import LeanDirectoryBrowser.Allegro
 import LeanDirectoryBrowser.Domain.DisplayConstants
-import LeanDirectoryBrowser.List
 
 inductive ProgState
 | start (rootDirectoryPath : String) -- loading root
