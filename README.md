@@ -1,5 +1,5 @@
 # lean-directory-browser
-It is a windows folder explorer written in lean4 (using code-proxy).
+It is a windows folder explorer in lean version 4.27.0 (using code-proxy).
 
 ## Running project
 1. Build and copy code-proxy binaries to the Al subfolder of the output folder:

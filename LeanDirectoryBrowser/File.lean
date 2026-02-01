@@ -1,12 +1,58 @@
 import LeanDirectoryBrowser.FilePath
 
 inductive File : Type
-| directory
-  (path : String)
-  (children : Option (List File))
-| file
-  (path : String)
-  deriving Repr, BEq
+| directory (path : String) (children : Option (List File))
+| file (path : String)
+  deriving Repr
+
+mutual
+  private def beqFile : File → File → Bool
+    | .file p, .file p' => p == p'
+    | .directory p c, .directory p' c' => p == p' && beqOpt c c'
+    | _, _ => false
+  private def beqOpt : Option (List File) → Option (List File) → Bool
+    | some xs, some ys => beqList xs ys
+    | none, none => true
+    | _, _ => false
+  private def beqList : List File → List File → Bool
+    | x::xs, y::ys => beqFile x y && beqList xs ys
+    | [], [] => true
+    | _, _ => false
+end
+
+instance : BEq File := ⟨beqFile⟩
+
+mutual
+  private theorem beqFile_eq : beqFile a b = true → a = b := by
+    cases a <;> cases b <;> intro h <;> simp_all [beqFile]
+    case directory.directory p c p' c' =>
+      cases hp : (p == p') with
+      | false => cases hc : beqOpt c c' <;> simp_all
+      | true => cases hc : beqOpt c c' with
+        | false => simp_all
+        | true => simp_all [LawfulBEq.eq_of_beq hp, beqOpt_eq hc]
+  private theorem beqOpt_eq : beqOpt c d = true → c = d := by
+    cases c <;> cases d <;> intro h <;> simp_all [beqOpt]
+    case some.some => simp_all [beqList_eq h]
+  private theorem beqList_eq : beqList xs ys = true → xs = ys := by
+    cases xs <;> cases ys <;> intro h <;> simp_all [beqList]
+    case cons.cons x xs y ys =>
+      cases hx : beqFile x y with
+      | false => cases hxs : beqList xs ys <;> simp_all
+      | true => cases hxs : beqList xs ys with
+        | false => simp_all
+        | true => simp_all [beqFile_eq hx, beqList_eq hxs]
+end
+
+mutual
+  private theorem beqFile_rfl : beqFile a a = true := by cases a <;> simp [beqFile, beqOpt_rfl]
+  private theorem beqOpt_rfl : beqOpt c c = true := by cases c <;> simp [beqOpt, beqList_rfl]
+  private theorem beqList_rfl : beqList xs xs = true := by cases xs <;> simp [beqList, beqFile_rfl, beqList_rfl]
+end
+
+instance : LawfulBEq File where
+  eq_of_beq h := beqFile_eq h
+  rfl := beqFile_rfl
 
 namespace File
   def isDirectory : File → Prop

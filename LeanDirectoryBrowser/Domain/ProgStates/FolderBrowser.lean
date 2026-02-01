@@ -28,23 +28,18 @@ namespace FolderBrowser
             | [], _, _, _ => []
             | fs, n, x, y =>
               let (to_draw, rest) := fs.splitAt displayRows
-              [
-                draw_children_one_level to_draw x y,
-                if (n > 1) then
-                  draw_children_columns rest (n - 1) (x + displayColumnWidth) y
-                else
-                  []
-              ].join
-
+              (draw_children_one_level to_draw x y)
+              ++ (if (n > 1) then
+                draw_children_columns rest (n - 1) (x + displayColumnWidth) y
+              else
+                [])
           let childrenFromFileOnTop := children.drop (File.indexOfFile children fileOnTopPath)
           [
-            [
-              Code.clearToColor AllegroColor.black,
-              Code.drawStoredFontStr DisplayConstants.displayHeaderFontColour DisplayConstants.displayTopHorizontalMargin DisplayConstants.displayTopVerticalMargin DisplayConstants.displayHeaderFontStorageName FontAlignFlags.left currentDirectory.path
-            ],
-            draw_children_columns childrenFromFileOnTop displayColumns 0 (DisplayConstants.displayTopVerticalMargin + DisplayConstants.displayHeaderFontSize + DisplayConstants.displayHeaderMargin),
-            [Code.run]
-          ].join
+            Code.clearToColor AllegroColor.black,
+            Code.drawStoredFontStr DisplayConstants.displayHeaderFontColour DisplayConstants.displayTopHorizontalMargin DisplayConstants.displayTopVerticalMargin DisplayConstants.displayHeaderFontStorageName FontAlignFlags.left currentDirectory.path
+          ]
+          ++ draw_children_columns childrenFromFileOnTop displayColumns 0 (DisplayConstants.displayTopVerticalMargin + DisplayConstants.displayHeaderFontSize + DisplayConstants.displayHeaderMargin)
+          ++ [Code.run]
 
   def processMovingSelectionForward (ps : ProgState) (_ : isProgStateFolderBrowser ps) (positionsToMove : Nat) : ProgState :=
     match ps with
